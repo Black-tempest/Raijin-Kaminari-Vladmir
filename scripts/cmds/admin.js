@@ -345,7 +345,8 @@ module.exports = {
   config: {
     name: "admin",
     version: "3.7",
-    author: "NTKhang","Camille",
+    author: "NTKhang",
+    editeur:"Camille",
     countDown: 5,
     role: 2,
     description: { en: "Gestion admins avec photos garanties" },
