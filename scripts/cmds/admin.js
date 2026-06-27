@@ -347,7 +347,7 @@ module.exports = {
     version: "3.7",
     author: "NTKhang",
     editeur:"Camille",
-    countDown: 5,
+    countDown: 2,
     role: 2,
     description: { en: "Gestion admins avec photos garanties" },
     category: "box chat",
