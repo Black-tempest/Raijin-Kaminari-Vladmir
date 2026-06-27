@@ -3,22 +3,25 @@ const moment = require("moment-timezone");
 module.exports = {
   config: {
     name: "accept",
-    aliases: ['acp'],
+    aliases: ["acp"],
     version: "1.0",
-    author: "Loid Butter",
+    author: "Christus",
     countDown: 8,
     role: 2,
-    shortDescription: "accept users",
-    longDescription: "accept users",
-    category: "Utility",
+    shortDescription: "gérer les demandes d'amis",
+    longDescription: "Accepter ou refuser les demandes d'amis",
+    category: "utility",
+    guide: {
+      en: "{pn} [add|del] [numéro|all]"
+    }
   },
 
   onReply: async function ({ message, Reply, event, api, commandName }) {
     const { author, listRequest, messageID } = Reply;
     if (author !== event.senderID) return;
-    const args = event.body.replace(/ +/g, " ").toLowerCase().split(" ");
+    const args = event.body.trim().toLowerCase().split(/\s+/);
 
-    clearTimeout(Reply.unsendTimeout); // Clear the timeout if the user responds within the countdown duration
+    clearTimeout(Reply.unsendTimeout);
 
     const form = {
       av: api.getCurrentUserID(),
@@ -34,99 +37,112 @@ module.exports = {
       }
     };
 
-    const success = [];
-    const failed = [];
-
+    let actionType;
     if (args[0] === "add") {
       form.fb_api_req_friendly_name = "FriendingCometFriendRequestConfirmMutation";
       form.doc_id = "3147613905362928";
-    }
-    else if (args[0] === "del") {
+      actionType = "Acceptée";
+    } else if (args[0] === "del") {
       form.fb_api_req_friendly_name = "FriendingCometFriendRequestDeleteMutation";
       form.doc_id = "4108254489275063";
-    }
-    else {
-      return api.sendMessage("Please select <add: del > <target number: or \"all\">", event.threadID, event.messageID);
+      actionType = "Refusée";
+    } else {
+      return api.sendMessage("❌ Commande invalide. Utilisation : <add|del> <numéro|all>", event.threadID, event.messageID);
     }
 
     let targetIDs = args.slice(1);
-
     if (args[1] === "all") {
-      targetIDs = [];
-      const lengthList = listRequest.length;
-      for (let i = 1; i <= lengthList; i++) targetIDs.push(i);
+      targetIDs = Array.from({ length: listRequest.length }, (_, i) => i + 1);
     }
 
     const newTargetIDs = [];
     const promiseFriends = [];
+    const success = [];
+    const failed = [];
 
     for (const stt of targetIDs) {
-      const u = listRequest[parseInt(stt) - 1];
-      if (!u) {
-        failed.push(`Can't find stt ${stt} in the list`);
+      const user = listRequest[parseInt(stt) - 1];
+      if (!user) {
+        failed.push(`🚫 Impossible de trouver la demande #${stt}`);
         continue;
       }
-      form.variables.input.friend_requester_id = u.node.id;
+      form.variables.input.friend_requester_id = user.node.id;
       form.variables = JSON.stringify(form.variables);
-      newTargetIDs.push(u);
+      newTargetIDs.push(user);
       promiseFriends.push(api.httpPost("https://www.facebook.com/api/graphql/", form));
       form.variables = JSON.parse(form.variables);
     }
 
-    const lengthTarget = newTargetIDs.length;
-    for (let i = 0; i < lengthTarget; i++) {
-      try {
-        const friendRequest = await promiseFriends[i];
-        if (JSON.parse(friendRequest).errors) {
-          failed.push(newTargetIDs[i].node.name);
-        }
-        else {
-          success.push(newTargetIDs[i].node.name);
-        }
-      }
-      catch (e) {
-        failed.push(newTargetIDs[i].node.name);
-      }
-    }
+    const results = await Promise.allSettled(promiseFriends);
 
-    if (success.length > 0) {
-      api.sendMessage(`Â» The ${args[0] === 'add' ? 'friend request' : 'friend request deletion'} processed for ${success.length} people:\n\n${success.join("\n")}${failed.length > 0 ? `\nÂ» The following ${failed.length} people encountered errors: ${failed.join("\n")}` : ""}`, event.threadID, event.messageID);
-    } else {
-      api.unsendMessage(messageID); // Unsend the message if the response is incorrect
-      return api.sendMessage("Invalid response. Please provide a valid response.", event.threadID);
-    }
+    results.forEach((result, index) => {
+      const user = newTargetIDs[index];
+      if (result.status === "fulfilled" && !JSON.parse(result.value).errors) {
+        success.push(`✅ ${actionType} avec succès : ${user.node.name} (${user.node.id})`);
+      } else {
+        failed.push(`❌ Échec : ${user.node.name} (${user.node.id})`);
+      }
+    });
 
-    api.unsendMessage(messageID); // Unsend the message after it processed
+    let replyMsg = "";
+    if (success.length > 0) replyMsg += success.join("\n") + "\n";
+    if (failed.length > 0) replyMsg += failed.join("\n");
+
+    if (replyMsg) api.sendMessage(replyMsg, event.threadID, event.messageID);
+    else api.sendMessage("❌ Aucune demande valide n'a été traitée.", event.threadID);
+
+    api.unsendMessage(messageID);
   },
 
   onStart: async function ({ event, api, commandName }) {
-    const form = {
-      av: api.getCurrentUserID(),
-      fb_api_req_friendly_name: "FriendingCometFriendRequestsRootQueryRelayPreloader",
-      fb_api_caller_class: "RelayModern",
-      doc_id: "4499164963466303",
-      variables: JSON.stringify({ input: { scale: 3 } })
-    };
-    const listRequest = JSON.parse(await api.httpPost("https://www.facebook.com/api/graphql/", form)).data.viewer.friending_possibilities.edges;
-    let msg = "";
-    let i = 0;
-    for (const user of listRequest) {
-      i++;
-      msg += (`\n${i}. Name: ${user.node.name}`
-        + `\nID: ${user.node.id}`
-        + `\nUrl: ${user.node.url.replace("www.facebook", "fb")}`
-        + `\nTime: ${moment(user.time * 1009).tz("Asia/Manila").format("DD/MM/YYYY HH:mm:ss")}\n`);
-    }
-    api.sendMessage(`${msg}\nReply to this message with content: <add: del> <comparison: or "all"> to take action`, event.threadID, (e, info) => {
-      global.GoatBot.onReply.set(info.messageID, {
-        commandName,
-        messageID: info.messageID,
-        listRequest,
-        author: event.senderID,
-        unsendTimeout: setTimeout(() => {
-          api.unsendMessage(info.messageID); // Unsend the message after the countdown duration
-        }, this.config.countDown * 1000) // Convert countdown duration to milliseconds
+    try {
+      const form = {
+        av: api.getCurrentUserID(),
+        fb_api_req_friendly_name: "FriendingCometFriendRequestsRootQueryRelayPreloader",
+        fb_api_caller_class: "RelayModern",
+        doc_id: "4499164963466303",
+        variables: JSON.stringify({ input: { scale: 3 } })
+      };
+
+      const response = await api.httpPost("https://www.facebook.com/api/graphql/", form);
+      const listRequest = JSON.parse(response).data.viewer.friending_possibilities.edges;
+
+      if (!listRequest || listRequest.length === 0) {
+        return api.sendMessage("🌟 Vous n'avez aucune demande d'ami en attente !", event.threadID);
+      }
+
+      let msg = "╔═══》 𝐃𝐞𝐦𝐚𝐧𝐝𝐞𝐬 𝐝'𝐚𝐦𝐢𝐬 《 ═══╗\n\n";
+      listRequest.forEach((user, index) => {
+        msg += `💠  No. ${index + 1}\n`;
+        msg += `👤 Nom: ${user.node.name}\n`;
+        msg += `🆔 ID: ${user.node.id}\n`;
+        msg += `🔗 Profil: ${user.node.url.replace("www.facebook", "fb")}\n`;
+        msg += "━━━━━━━━━━━━━━━━\n";
       });
-    }, event.messageID);
+
+      msg += "\n💡 Répondez avec :\n";
+      msg += "✅ add <numéro> — Accepter la demande\n";
+      msg += "❌ del <numéro> — Refuser la demande\n";
+      msg += "💫 add all — Tout accepter\n";
+      msg += "🔥 del all — Tout refuser\n\n";
+      msg += "⏳ Ce menu sera supprimé automatiquement dans 2 minutes.\n";
+      msg += "╚═══════════════════╝";
+
+      api.sendMessage(msg, event.threadID, (e, info) => {
+        global.GoatBot.onReply.set(info.messageID, {
+          commandName,
+          messageID: info.messageID,
+          listRequest,
+          author: event.senderID,
+          unsendTimeout: setTimeout(() => {
+            api.unsendMessage(info.messageID);
+          }, 2 * 60 * 1000)
+        });
+      }, event.messageID);
+
+    } catch (error) {
+      console.error(error);
+      api.sendMessage("❌ Une erreur est survenue lors de la récupération des demandes d'amis.", event.threadID);
+    }
   }
 };
