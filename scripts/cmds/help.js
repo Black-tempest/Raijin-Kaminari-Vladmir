@@ -1,5 +1,27 @@
 const { commands, aliases } = global.GoatBot;
 const axios = require('axios');
+const fs = require("fs-extra");
+const path = require("path");
+
+// Tes 7 liens images 225
+const IMAGES = [
+  "https://i.ibb.co/Vcs9dpFj/cb5df098763a.gif",
+  "https://i.ibb.co/N6ZHKhVg/a4ac47068586.gif",
+  "https://i.ibb.co/Dfz5dLHn/b3a36e215750.jpg",
+  "https://i.ibb.co/4nP2JZK7/d35b5f3b76a2.gif",
+  "https://i.ibb.co/Y4dh35Mh/4c78fe2b7b0d.gif",
+  "https://i.ibb.co/yTMnJP8/4278998b0421.gif",
+  "https://i.ibb.co/dsrvQbKS/45a1aa31f9c8.gif"
+];
+
+async function getRandomImage() {
+  const url = IMAGES[Math.floor(Math.random() * IMAGES.length)];
+  const tmpPath = path.join(__dirname, "..", "cache", `help_${Date.now()}.gif`);
+  await fs.ensureDir(path.dirname(tmpPath));
+  const response = await axios.get(url, { responseType: "arraybuffer" });
+  fs.writeFileSync(tmpPath, response.data);
+  return fs.createReadStream(tmpPath);
+}
 
 function toCmdFont(text = "") {
   const map = {
@@ -30,18 +52,20 @@ function toQuestionFont(text = "") {
 module.exports = {
   config: {
     name: "help",
-    version: "6.3",
-    author: "Christus",
+    version: "6.5",
+    author: "Christus", // Pas touché
+    editor: "Camille Uchiha", // Ajouté
     countDown: 2,
     role: 0,
     shortDescription: { en: "Explore all bot commands" },
     category: "info",
-    guide: { en: "help <command> | help -ai <cmd> <question>" },
+    guide: { en: "help <command>" }, // -ai supprimé
   },
 
   onStart: async function ({ message, args, event, usersData }) {
     try {
       const uid = event.senderID;
+      const attachment = await getRandomImage(); // Image random
 
       let avatarStream;
       try {
@@ -53,161 +77,63 @@ module.exports = {
         );
       }
 
-      if (args[0]?.toLowerCase() === "-ai") {
-        const cmdName = args[1]?.toLowerCase();
-        const questionRaw = args.slice(2).join(" ");
-
-        if (!cmdName) {
-          return message.reply({
-            body: "❌ Usage: .help -ai <command> <question>",
-            attachment: avatarStream
-          });
-        }
-
-        const command =
-          commands.get(cmdName) ||
-          commands.get(aliases.get(cmdName));
-
-        if (!command) {
-          return message.reply({
-            body: `❌ Command "${cmdName}" not found.`,
-            attachment: avatarStream
-          });
-        }
-
-        const cfg = command.config || {};
-
-        const info = `
-Command Name: ${cfg.name}
-Description: ${cfg.longDescription?.en || cfg.shortDescription?.en || "No description"}
-Category: ${cfg.category || "Misc"}
-Aliases: ${Array.isArray(cfg.aliases) ? cfg.aliases.join(", ") : "None"}
-Role: ${cfg.role}
-Cooldown: ${cfg.countDown}
-Version: ${cfg.version}
-Author: ${cfg.author}
-Guide: ${cfg.guide?.en || "No guide"}
-`;
-
-        const prompt = `
-You are a GoatBot assistant that helps users understand commands.
-
-Here is the command info:
-${info}
-
-User question:
-${questionRaw || "Explain how to use this command."}
-
-Answer clearly in the user's language without using * characters.
-`;
-
-        try {
-          const apiUrl = `https://christus-api.vercel.app/ai/gemini-proxy2?prompt=${encodeURIComponent(prompt)}`;
-          const { data } = await axios.get(apiUrl);
-
-          let aiReply = data?.result || "No AI response.";
-          aiReply = aiReply.replace(/\*/g, "");
-
-          const styledQuestion = toQuestionFont(questionRaw || "Explain how to use this command.");
-
-          return message.reply({
-            body:
-`🤖 AI Assistant — ${cfg.name}
-
-❓ ${styledQuestion}
-
-${aiReply}`,
-            attachment: avatarStream
-          });
-
-        } catch (err) {
-          console.error(err);
-          return message.reply({
-            body: "❌ AI request failed.",
-            attachment: avatarStream
-          });
-        }
-      }
+      // BLOC -AI SUPPRIMÉ ✅
 
       if (!args || args.length === 0) {
-        let body = "📚 GOAT BOT COMMANDS\n\n";
+        let body = "📚 GOAT BOT COMMANDS\n";
 
         const categories = {};
-        for (let [name, cmd] of commands) {
-          const cat = cmd.config.category || "Misc";
-          if (!categories[cat]) categories[cat] = [];
-          categories[cat].push(name);
+        for (const [name, command] of commands) {
+          const category = command.config.category || "Misc";
+          if (!categories[category]) categories[category] = [];
+          categories[category].push(name);
         }
 
-        for (const cat of Object.keys(categories).sort()) {
-          const list = categories[cat]
-            .sort()
-            .map(c => `• ${toCmdFont(c)}`)
-            .join("  ");
-
-          body += `🍓 ${cat}\n${list || "No commands"}\n\n`;
+        for (const [category, cmds] of Object.entries(categories)) {
+          body += `\n[${toCmdFont(category)}]\n`;
+          body += cmds.map(c => `• ${toCmdFont(c)}`).join("\n") + "\n";
         }
 
-        body += `📊 Total Commands: ${commands.size}\n`;
-        body += `🔧 Info: .help <command>\n`;
-        body += `🤖 AI Help: .help -ai <command> <question>\n`;
+        body += `\nTotal: ${commands.size} commandes\n`;
+        body += `Page 1/${Math.ceil(commands.size/20)}`;
 
         return message.reply({
-          body,
-          attachment: avatarStream
+          body: body.trim(),
+          attachment // Image random ici
         });
       }
 
-      const query = args[0].toLowerCase();
-
-      const command =
-        commands.get(query) ||
-        commands.get(aliases.get(query));
+      const commandName = args[0].toLowerCase();
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
 
       if (!command) {
         return message.reply({
-          body: `❌ Command "${query}" not found.`,
-          attachment: avatarStream
+          body: `❌ Command "${commandName}" not found.`,
+          attachment // Image random ici aussi
         });
       }
 
-      const cfg = command.config || {};
+      const cfg = command.config;
+      const body = `
 
-      const roleMap = {
-        0: "All Users",
-        1: "Group Admins",
-        2: "Bot Admins"
-      };
-
-      const aliasesList = Array.isArray(cfg.aliases) && cfg.aliases.length
-        ? cfg.aliases.map(a => toCmdFont(a)).join(", ")
-        : "None";
-
-      const desc =
-        cfg.longDescription?.en ||
-        cfg.shortDescription?.en ||
-        "No description.";
-
-      const usage = cfg.guide?.en || cfg.name;
-
-      const card = [
-        `✨ ${toCmdFont(cfg.name)} ✨`,
-        `📝 Description: ${desc}`,
-        `📂 Category: ${cfg.category || "Misc"}`,
-        `🔤 Aliases: ${aliasesList}`,
-        `🛡️ Role: ${roleMap[cfg.role] || "Unknown"} | ⏱️ Cooldown: ${cfg.countDown || 1}s`,
-        `🚀 Version: ${cfg.version || "1.0"} | 👨‍💻 Author: ${cfg.author || "Unknown"}`,
-        `💡 Usage: .${toCmdFont(usage)}`
-      ].join("\n");
+📝 Description: ${cfg.longDescription?.en || cfg.shortDescription?.en || "No description"}
+📁 Category: ${cfg.category || "Misc"}
+🔖 Aliases: ${Array.isArray(cfg.aliases)? cfg.aliases.join(", ") : "None"}
+👑 Author: ${cfg.author}
+✏️ Editor: ${cfg.editor || "None"}
+🔢 Version: ${cfg.version}
+⏰ Cooldown: ${cfg.countDown}s
+👤 Role: ${cfg.role}
+📖 Guide: ${cfg.guide?.en || "No guide"}
+      `.trim();
 
       return message.reply({
-        body: card,
-        attachment: avatarStream
+        body,
+        attachment // Image random ici aussi
       });
 
-    } catch (err) {
-      console.error("HELP ERROR:", err);
-      return message.reply(`⚠️ Error: ${err.message || err}`);
+    } catch (e) {
+      console.log(e);
     }
   }
 };
