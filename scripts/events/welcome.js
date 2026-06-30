@@ -1,4 +1,3 @@
-
 const { getTime, drive } = global.utils;
 
 if (!global.temp.welcomeEvent) global.temp.welcomeEvent = {};
@@ -6,8 +5,8 @@ if (!global.temp.welcomeEvent) global.temp.welcomeEvent = {};
 module.exports = {
         config: {
                 name: "welcome",
-                version: "2.0",
-                author: "NTKhang + Modified by You",
+                version: "2.1",
+                author: "NTKhang + Modified by Camille Uchiha",
                 category: "events"
         },
 
@@ -24,18 +23,28 @@ module.exports = {
                 },
                 en: {
                         session1: "☀ 𝚖𝚘𝚛𝚗𝚒𝚗𝚐",
-                        session2: "⛅ 𝚗𝚘𝚘𝚗",
-                        session3: "🌆 𝚊𝚏𝚝𝚎𝚛𝚗𝚘𝚘𝚗",
+                        session2: "⛅ 𝚗𝚘𝚗",
+                        session3: "🌆 𝚊𝚏𝚝𝚎𝚛𝚗𝚘𝚗",
                         session4: "🌙 𝚎𝚟𝚎𝚗𝚒𝚗𝚐",
-                        welcomeMessage: "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞 𝚏𝚘𝚛 𝚒𝚗𝚟𝚒𝚝𝚒𝚗𝚐 𝚖𝚎 𝚝𝚘 𝚝𝚑𝚎 𝚐𝚛𝚘𝚞𝚙!\n𝙱𝚘𝚝 𝚙𝚛𝚎𝚏𝚒𝚡: %1\n𝚃𝚘 𝚟𝚒𝚎𝚠 𝚝𝚑𝚎 𝚕𝚒𝚜𝚝 𝚘𝚏 𝚌𝚘𝚖𝚖𝚊𝚗𝚍𝚜, 𝚙𝚕𝚎𝚊𝚜𝚎 𝚎𝚗𝚝𝚎𝚛: %1𝚑𝚎𝚕𝚙",
+                        welcomeMessage: "𝚃𝚑𝚊𝚗𝚔 𝚢𝚘𝚞 𝚏𝚘𝚛 𝚒𝚗𝚟𝚒𝚝𝚒𝚗𝚐 𝚖𝚎 𝚝𝚘 𝚝𝚑𝚎 𝚐𝚛𝚘𝚞𝚙!\n𝙱𝚘𝚝 𝚙𝚛𝚎𝚏𝚒𝚡: %1\n𝚃𝚘 𝚟𝚒𝚎𝚠 𝚝𝚑𝚎 𝚕𝚒𝚜𝚝 𝚘𝚏 𝚌𝚘𝚖𝚊𝚗𝚍𝚜, 𝚙𝚕𝚎𝚊𝚜𝚎 𝚎𝚗𝚝𝚎𝚛: %1𝚑𝚎𝚕𝚙",
                         multiple1: "🔹 𝚢𝚘𝚞",
                         multiple2: "🔹 𝚢𝚘𝚞 𝚐𝚞𝚢𝚜",
-                        defaultWelcomeMessage: "╭──────────────────╮\n☺️ＢＩＥＮＶＥＮＵＥ\n╰──────────────────╯ \n𝙳𝚎𝚊𝚛✨{userName}✨\n.𝚆𝚎𝚕𝚌𝚘𝚖𝚎 {multiple} 𝚝𝚘 𝚝𝚑𝚎 𝚌𝚑𝚊𝚝 𝚐𝚛𝚘𝚞𝚙:{boxName}!\n𝙷𝚊𝚟𝚎 𝚊 𝚗𝚒𝚌𝚎 {session}!\n\n╭──────────────────╮\n    📥 𝙰𝚍𝚍𝚎𝚍 𝚋𝚢: ✨{adderName}✨\n╰──────────────────╯"
+                        defaultWelcomeMessage: "╭──────────────────╮\n☺️ＢＩＥＮＶＥＮＵＥ\n╰──────────────────╯ \n𝙳𝚎𝚊𝚛✨{userName}✨\n.𝚆𝚎𝚕𝚌𝚘𝚖𝚎 {multiple} 𝚝𝚘 𝚝𝚑𝚎 𝚌𝚑𝚊𝚝 𝚐𝚛𝚘𝚞𝚙:{boxName}!\n𝙷𝚊𝚟𝚎 𝚊 𝚗𝚒𝚌𝚎 {session}!\n\n╭──────────────────╮\n 📥 𝙰𝚍𝚎𝚍 𝚋𝚢: ✨{adderName}✨\n╰──────────────────╯"
+                },
+                fr: { // FR 225 AJOUTÉ ICI
+                        session1: "☀ 𝙼𝚊𝚝𝚒𝚗",
+                        session2: "⛅ 𝙼𝚒𝚍𝚒",
+                        session3: "🌆 𝙰𝚙𝚛𝚎̀𝚜-𝚖𝚒𝚍𝚒",
+                        session4: "🌙 𝚂𝚘𝚒𝚛",
+                        welcomeMessage: "✨ 𝙼𝚎𝚛𝚌𝚒 𝚍𝚎 𝚖'𝚊𝚟𝚘𝚒𝚛 𝚊𝚓𝚘𝚞𝚝𝚎́ 𝚊𝚞 𝚐𝚛𝚘𝚞𝚙𝚎!\n⚡ 𝙿𝚛𝚎́𝚏𝚒𝚡𝚎 𝚋𝚘𝚝: %1\n🔎 𝙿𝚘𝚞𝚛 𝚟𝚘𝚒𝚛 𝚕𝚎𝚜 𝚌𝚘𝚖𝚊𝚗𝚍𝚎𝚜: %1help",
+                        multiple1: "🔹 𝚃𝚘𝚒",
+                        multiple2: "🔹 𝚅𝚘𝚞𝚜 𝚝𝚘𝚞𝚜",
+                        defaultWelcomeMessage: "╭──────────────────╮\n☺️ 𝙱𝙸𝙴𝙽𝚅𝙴𝙽𝚄𝙴\n╰──────────────────╯ \n✨{userName}✨\n.𝙱𝚒𝚎𝚗𝚟𝚎𝚗𝚞𝚎 {multiple} 𝚍𝚊𝚗𝚜 𝚕𝚎 𝚐𝚛𝚘𝚞𝚙𝚎: {boxName}!\n𝙿𝚊𝚜𝚎 𝚞𝚗 𝚋𝚘𝚗 {session}!\n\n╭──────────────────╮\n 📥 𝙰𝚓𝚘𝚞𝚝𝚎́ 𝚙𝚊𝚛: ✨{adderName}✨\n╰──────────────────╯"
                 }
         },
 
         onStart: async ({ threadsData, message, event, api, getLang }) => {
-                if (event.logMessageType !== "log:subscribe") return;
+                if (event.logMessageType!== "log:subscribe") return;
 
                 const { threadID, logMessageData } = event;
                 const { addedParticipants } = logMessageData;
@@ -78,21 +87,21 @@ module.exports = {
                         // Get info of the adder
                         const adderID = event.author;
                         const adderInfo = await api.getUserInfo(adderID);
-                        const adderName = adderInfo[adderID]?.name || "Someone";
+                        const adderName = adderInfo[adderID]?.name || "Quelqu'un";
                         mentions.push({ tag: adderName, id: adderID });
 
                         let welcomeMessage = threadData.data.welcomeMessage || getLang("defaultWelcomeMessage");
 
                         welcomeMessage = welcomeMessage
-                                .replace(/\{userName\}|\{userNameTag\}/g, newMembers.join(", "))
-                                .replace(/\{boxName\}|\{threadName\}/g, threadName)
-                                .replace(/\{multiple\}/g, isMultiple ? getLang("multiple2") : getLang("multiple1"))
-                                .replace(/\{session\}/g,
-                                        hours <= 10 ? getLang("session1") :
-                                        hours <= 12 ? getLang("session2") :
-                                        hours <= 18 ? getLang("session3") : getLang("session4")
+                               .replace(/\{userName\}|\{userNameTag\}/g, newMembers.join(", "))
+                               .replace(/\{boxName\}|\{threadName\}/g, threadName)
+                               .replace(/\{multiple\}/g, isMultiple? getLang("multiple2") : getLang("multiple1"))
+                               .replace(/\{session\}/g,
+                                        hours <= 10? getLang("session1") :
+                                        hours <= 12? getLang("session2") :
+                                        hours <= 18? getLang("session3") : getLang("session4")
                                 )
-                                .replace(/\{adderName\}/g, adderName);
+                               .replace(/\{adderName\}/g, adderName);
 
                         let form = {
                                 body: welcomeMessage,
@@ -104,8 +113,8 @@ module.exports = {
                                 const attachments = files.map(file => drive.getFile(file, "stream"));
 
                                 form.attachment = (await Promise.allSettled(attachments))
-                                        .filter(({ status }) => status === "fulfilled")
-                                        .map(({ value }) => value);
+                                       .filter(({ status }) => status === "fulfilled")
+                                       .map(({ value }) => value);
                         }
 
                         message.send(form);
