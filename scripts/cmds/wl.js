@@ -5,73 +5,70 @@ module.exports = {
   config: {
     name: "whitelist",
     aliases: ["wl"],
-    version: "2.0",
-    author: "NeoKEX",
+    version: "2.1",
+    author: "NeoKEX + Camille Uchiha",
     countDown: 5,
     role: 2,
     description: {
-      en: "Manage whitelist for users and threads - Control who can use the bot"
+      en: "Manage whitelist for users and threads - Control who can use the bot",
+      fr: "Gérer la liste blanche users et groupes - Contrôle qui peut utiliser le bot"
     },
     category: "owner",
     guide: {
-      en: '📋 USER WHITELIST:\n' +
-        '   {pn} user add <uid | @tag>: Add user to whitelist\n' +
-        '   {pn} user remove <uid | @tag>: Remove user from whitelist\n' +
-        '   {pn} user list: List all whitelisted users\n' +
-        '   {pn} user on/off: Enable/disable user whitelist mode\n\n' +
-        '📋 THREAD WHITELIST:\n' +
-        '   {pn} thread add [threadID]: Add thread to whitelist (current if no ID)\n' +
-        '   {pn} thread remove [threadID]: Remove thread from whitelist\n' +
-        '   {pn} thread list: List all whitelisted threads\n' +
-        '   {pn} thread on/off: Enable/disable thread whitelist mode\n\n' +
+      en: '...',
+      fr: '📋 LISTE BLANCHE USERS:\n' +
+        ' {pn} user add <uid | @tag>: Ajouter un user\n' +
+        ' {pn} user remove <uid | @tag>: Retirer un user\n' +
+        ' {pn} user list: Voir la liste users\n' +
+        ' {pn} user on/off: Activer/désactiver mode user\n' +
+        '📋 LISTE BLANCHE GROUPES:\n' +
+        ' {pn} thread add [id]: Ajouter un groupe [actuel si vide]\n' +
+        ' {pn} thread remove [id]: Retirer un groupe\n' +
+        ' {pn} thread list: Voir la liste groupes\n' +
+        ' {pn} thread on/off: Activer/désactiver mode groupe\n' +
         '📊 STATUS:\n' +
-        '   {pn} status: View whitelist status for both users and threads'
+        ' {pn} status: Voir le statut des deux listes'
     }
   },
 
   langs: {
-    en: {
-      userAdded: "✅ | Added %1 user(s) to whitelist:\n%2",
-      userAlreadyWhitelisted: "\n⚠️ | %1 user(s) already whitelisted:\n%2",
-      userMissingId: "⚠️ | Please enter a user ID or tag someone.",
-      userRemoved: "✅ | Removed %1 user(s) from whitelist:\n%2",
-      userNotWhitelisted: "\n⚠️ | %1 user(s) not in whitelist:\n%2",
-      userList: "📋 | Whitelisted Users (%1):\n%2",
-      userEmptyList: "📋 | No users are currently whitelisted.",
-      userModeEnabled: "✅ | User whitelist mode ENABLED.\nOnly whitelisted users can use the bot.",
-      userModeDisabled: "✅ | User whitelist mode DISABLED.",
-      
-      threadAdded: "✅ | Added thread to whitelist:\n• %1 (%2)",
-      threadAlreadyWhitelisted: "⚠️ | This thread is already whitelisted.",
-      threadRemoved: "✅ | Removed thread from whitelist:\n• %1",
-      threadNotWhitelisted: "⚠️ | This thread is not in whitelist.",
-      threadList: "📋 | Whitelisted Threads (%1):\n%2",
-      threadEmptyList: "📋 | No threads are currently whitelisted.",
-      threadModeEnabled: "✅ | Thread whitelist mode ENABLED.\nOnly whitelisted threads can use the bot.",
-      threadModeDisabled: "✅ | Thread whitelist mode DISABLED.",
-      threadInvalidId: "⚠️ | Please enter a valid thread ID.",
-      
-      status: "📊 | WHITELIST STATUS\n\n👤 User Whitelist: %1\n   Total users: %2\n\n💬 Thread Whitelist: %3\n   Total threads: %4",
-      noPermission: "❌ | Only premium users or higher can use this command.",
-      invalidSubcommand: "⚠️ | Invalid subcommand. Use: user, thread, or status"
+    en: {...},
+    fr: {
+      userAdded: "✅ | %1 user(s) ajouté(s) à la liste:\n%2",
+      userAlreadyWhitelisted: "\n⚠️ | %1 user(s) étaient déjà dans la liste:\n%2",
+      userMissingId: "⚠️ | Entre un ID ou tag un user.",
+      userRemoved: "✅ | %1 user(s) retiré(s) de la liste:\n%2",
+      userNotWhitelisted: "\n⚠️ | %1 user(s) pas dans la liste:\n%2",
+      userList: "📋 | Users autorisés (%1):\n%2",
+      userEmptyList: "📋 | Aucun user dans la liste.",
+      userModeEnabled: "✅ | Mode liste blanche USER ACTIVÉ.\nSeuls les users autorisés peuvent utiliser le bot.",
+      userModeDisabled: "✅ | Mode liste blanche USER DÉSACTIVÉ.",
+
+      threadAdded: "✅ | Groupe ajouté à la liste:\n• %1 (%2)",
+      threadAlreadyWhitelisted: "⚠️ | Ce groupe est déjà autorisé.",
+      threadRemoved: "✅ | Groupe retiré de la liste:\n• %1",
+      threadNotWhitelisted: "⚠️ | Ce groupe n'est pas autorisé.",
+      threadList: "📋 | Groupes autorisés (%1):\n%2",
+      threadEmptyList: "📋 | Aucun groupe autorisé.",
+      threadModeEnabled: "✅ | Mode liste blanche GROUPE ACTIVÉ.\nSeuls les groupes autorisés peuvent utiliser le bot.",
+      threadModeDisabled: "✅ | Mode liste blanche GROUPE DÉSACTIVÉ.",
+      threadInvalidId: "⚠️ | Entre un ID de groupe valide.",
+
+      status: "📊 | STATUT LISTE BLANCHE\n👤 Users: %1\n Total: %2\n💬 Groupes: %3\n Total: %4",
+      noPermission: "❌ | Réservé aux Premium ou plus.",
+      invalidSubcommand: "⚠️ | Sous-commande invalide. Utilise: user, thread, ou status"
     }
   },
 
   onStart: async function ({ message, args, usersData, threadsData, event, getLang, role }) {
     if (!config.whiteListMode) {
-      config.whiteListMode = {
-        enable: false,
-        whiteListIds: []
-      };
+      config.whiteListMode = { enable: false, whiteListIds: [] };
     }
     if (!config.whiteListMode.whiteListIds) {
       config.whiteListMode.whiteListIds = [];
     }
     if (!config.whiteListModeThread) {
-      config.whiteListModeThread = {
-        enable: false,
-        whiteListThreadIds: []
-      };
+      config.whiteListModeThread = { enable: false, whiteListThreadIds: [] };
     }
     if (!config.whiteListModeThread.whiteListThreadIds) {
       config.whiteListModeThread.whiteListThreadIds = [];
@@ -91,14 +88,14 @@ module.exports = {
           case "add":
           case "-a": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             let uids = [];
             if (Object.keys(event.mentions).length > 0) {
               uids = Object.keys(event.mentions);
             } else if (event.messageReply) {
               uids.push(event.messageReply.senderID);
             } else {
-              uids = args.slice(2).filter(arg => !isNaN(arg));
+              uids = args.slice(2).filter(arg =>!isNaN(arg));
             }
 
             if (uids.length === 0) {
@@ -149,14 +146,14 @@ module.exports = {
           case "delete":
           case "-d": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             let uids = [];
             if (Object.keys(event.mentions).length > 0) {
               uids = Object.keys(event.mentions);
             } else if (event.messageReply) {
               uids.push(event.messageReply.senderID);
             } else {
-              uids = args.slice(2).filter(arg => !isNaN(arg));
+              uids = args.slice(2).filter(arg =>!isNaN(arg));
             }
 
             if (uids.length === 0) {
@@ -169,7 +166,7 @@ module.exports = {
             for (const uid of uids) {
               const uidStr = String(uid);
               const index = config.whiteListMode.whiteListIds.map(String).indexOf(uidStr);
-              if (index !== -1) {
+              if (index!== -1) {
                 config.whiteListMode.whiteListIds.splice(index, 1);
                 removed.push(uidStr);
               } else {
@@ -206,7 +203,7 @@ module.exports = {
           case "list":
           case "-l": {
             const whitelistIds = config.whiteListMode.whiteListIds;
-            
+
             if (whitelistIds.length === 0) {
               return message.reply(getLang("userEmptyList"));
             }
@@ -224,7 +221,7 @@ module.exports = {
           case "on":
           case "enable": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             config.whiteListMode.enable = true;
             saveConfig();
             return message.reply(getLang("userModeEnabled"));
@@ -233,7 +230,7 @@ module.exports = {
           case "off":
           case "disable": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             config.whiteListMode.enable = false;
             saveConfig();
             return message.reply(getLang("userModeDisabled"));
@@ -252,18 +249,18 @@ module.exports = {
           case "add":
           case "-a": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             let threadID = args[2];
             if (!threadID) {
               threadID = event.threadID;
             }
-            
+
             if (!threadID || isNaN(threadID)) {
               return message.reply(getLang("threadInvalidId"));
             }
 
             const threadIDStr = String(threadID);
-            
+
             if (config.whiteListModeThread.whiteListThreadIds.map(String).includes(threadIDStr)) {
               return message.reply(getLang("threadAlreadyWhitelisted"));
             }
@@ -271,7 +268,7 @@ module.exports = {
             config.whiteListModeThread.whiteListThreadIds.push(threadIDStr);
             saveConfig();
 
-            let threadName = "Unknown Thread";
+            let threadName = "Groupe inconnu";
             try {
               const threadInfo = await threadsData.get(threadIDStr);
               threadName = threadInfo?.threadName || threadName;
@@ -285,19 +282,19 @@ module.exports = {
           case "delete":
           case "-d": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             let threadID = args[2];
             if (!threadID) {
               threadID = event.threadID;
             }
-            
+
             if (!threadID || isNaN(threadID)) {
               return message.reply(getLang("threadInvalidId"));
             }
 
             const threadIDStr = String(threadID);
             const index = config.whiteListModeThread.whiteListThreadIds.map(String).indexOf(threadIDStr);
-            
+
             if (index === -1) {
               return message.reply(getLang("threadNotWhitelisted"));
             }
@@ -311,14 +308,14 @@ module.exports = {
           case "list":
           case "-l": {
             const threadIds = config.whiteListModeThread.whiteListThreadIds;
-            
+
             if (threadIds.length === 0) {
               return message.reply(getLang("threadEmptyList"));
             }
 
             const threadNames = await Promise.all(
               threadIds.map(async tid => {
-                let name = "Unknown Thread";
+                let name = "Groupe inconnu";
                 try {
                   const threadInfo = await threadsData.get(String(tid));
                   name = threadInfo?.threadName || name;
@@ -333,7 +330,7 @@ module.exports = {
           case "on":
           case "enable": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             config.whiteListModeThread.enable = true;
             saveConfig();
             return message.reply(getLang("threadModeEnabled"));
@@ -342,7 +339,7 @@ module.exports = {
           case "off":
           case "disable": {
             if (role < 3) return message.reply(getLang("noPermission"));
-            
+
             config.whiteListModeThread.enable = false;
             saveConfig();
             return message.reply(getLang("threadModeDisabled"));
@@ -355,11 +352,11 @@ module.exports = {
 
       case "status":
       case "info": {
-        const userEnabled = config.whiteListMode.enable ? "ON" : "OFF";
+        const userEnabled = config.whiteListMode.enable? "ON" : "OFF";
         const userCount = config.whiteListMode.whiteListIds.length;
-        const threadEnabled = config.whiteListModeThread.enable ? "ON" : "OFF";
+        const threadEnabled = config.whiteListModeThread.enable? "ON" : "OFF";
         const threadCount = config.whiteListModeThread.whiteListThreadIds.length;
-        
+
         return message.reply(getLang("status", userEnabled, userCount, threadEnabled, threadCount));
       }
 
