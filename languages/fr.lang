@@ -111,8 +111,68 @@ handlerEvents.onlyAdminBot2=❌ | Hé %1 — seul l'administrateur du bot peut u
 handlerEvents.onlyCreator=❌ | Hé %1 — seul le créateur du bot peut utiliser la commande "%2"
 handlerEvents.onlyAdminBot2ToUseOnReply=❌ | Seul l'administrateur du bot peut utiliser la fonction de réponse de la commande "%1"
 handlerEvents.onlyAdminBot2ToUseOnReaction=❌ | Seul l'administrateur du bot peut utiliser la fonction de réaction de la commande "%1"
-
 # Premium role
 handlerEvents.onlyPremium=🌟 | Cette commande nécessite un accès Premium
 handlerEvents.onlyPremiumToUseOnReply=🌟 | Accès Premium requis pour utiliser la fonction de réponse de "%1"
 handlerEvents.onlyPremiumToUseOnReaction=🌟 | Accès Premium requis pour utiliser la fonction de réaction de "%1"
+# Developer role (needRole = 4)
+handlerEvents.onlyDeveloper=💻 | Réservé aux développeurs
+handlerEvents.onlyDeveloperToUseOnReply=💻 | Réservé aux développeurs – fonction de réponse de "%1"
+handlerEvents.onlyDeveloperToUseOnReaction=💻 | Réservé aux développeurs – fonction de réaction de "%1"
+
+handlerEvents.waitingForCommand=⏱ Tu es dans la période d'attente pour utiliser cette commande, s'il te plaît réessaie après %1s
+# Prefix only response (with mention) – %1 = user name, %2 = prefix
+handlerEvents.prefixOnly=Hé %1, tu as juste tapé "%2" — mais qu'attends-tu de moi ? 🤔 Essaie %2help pour voir toutes les commandes disponibles !
+
+handlerEvents.errorOccurred=❌ [ %1 ]\nUne erreur est survenue sur la commande "%2"\n\n%3
+handlerEvents.errorOccurred2=❌ [ %1 ]\nUne erreur est survenue dans onChat sur la commande "%2"\n\n%3
+handlerEvents.errorOccurred3=❌ [ %1 ]\nUne erreur est survenue lors de l'exécution de ncReply sur la commande "%2"\n\n%3
+handlerEvents.errorOccurred4=❌ [ %1 ]\nUne erreur est survenue lors de l'exécution de onReaction sur la commande "%2"\n\n%3
+handlerEvents.errorOccurred5=❌ [ %1 ]\nUne erreur est survenue lors de l'exécution de onEvent sur la commande "%2"\n\n%3
+handlerEvents.errorOccurred6=❌ [ %1 ]\nUne erreur est survenue lors de l'exécution de onEvent sur la commande "%2"\n\n%3
+handlerEvents.errorOccurred7=❌ [ %1 ]\nUne erreur est survenue lors de l'exécution de onAnyEvent sur la commande "%2"\n\n%3
+handlerEvents.cannotFindCommandName=❌ Impossible de trouver le nom de la commande pour exécuter cette réponse !
+handlerEvents.cannotFindCommand=❌ Impossible de trouver la commande "%1" pour exécuter cette réponse !
+handlerEvents.premiumRequired=⭐ | La commande "%1" est réservée aux utilisateurs premium. Contacte l'administrateur pour améliorer ton compte !
+handlerEvents.premiumExpired=⭐ | Ton abonnement premium a expiré. La commande "%1" est réservée aux utilisateurs premium. Contacte l'administrateur pour renouveler ton abonnement !
+
+# bot/autoUptime.js
+autoUptime.autoUptimeTurnedOn=Le mode AutoUptime a été activé
+
+# database/controller/index.js
+indexController.connectingMongoDB=Connexion à la base de données MONGODB en cours...
+indexController.connectMongoDBSuccess=Connexion réussie à la base de données MongoDB !
+indexController.connectMongoDBError=Une erreur est survenue lors de la connexion à la base de données MongoDB :
+indexController.connectingMySQL=Connexion à la base de données SQLITE en cours...
+indexController.connectMySQLSuccess=Connexion réussie à la base de données SQLITE !
+indexController.connectMySQLError=Une erreur est survenue lors de la connexion à la base de données SQLITE :
+
+# updater.js
+updater.updateTooFast=S'il te plaît, attends au moins 5 minutes après le dernier commit pour mettre à jour sans erreur. Temps restant : %1 minutes %2 secondes
+updater.latestVersion=Tu utilises déjà la dernière version
+updater.cantFindVersion=Tu utilises une version non définie (%1), s'il te plaît vérifie à nouveau ton fichier package.json
+updater.newVersions=Il y a %1 nouvelles versions à installer, début de la mise à jour...
+updater.updateSuccess=Mise à jour réussie %1
+updater.configChanged=Le fichier %1 a été modifié, s'il te plaît vérifie à nouveau ton fichier config.json
+updater.installingPackages=Installation des dépendances pour le bot...
+updater.installSuccess=Dépendances installées avec succès, redémarre le bot pour utiliser la nouvelle version
+updater.backupSuccess=Sauvegarde réussie des fichiers modifiés, consulte le dossier %1
+updater.restartToApply=. Redémarre le bot pour appliquer la nouvelle version
+updater.skipFile=Il existe une nouvelle version du fichier %1, mais tu as ignoré ce fichier durant le processus de mise à jour avec le commentaire %2 à l'intérieur
+
+# dashboard/routes/verifyfbid.js
+verifyfbid.sendCode=Ton code de vérification est :\n%1\nCe code de vérification est valide pendant %2 minutes
+
+# utils.js
+utils.errorOccurred=❌ Une erreur est survenue :\n\n%1
+
+# for command
+command.restartedBot=Le bot a été redémarré
+
+# dashboard/app.js
+app.googleApiRefreshTokenExpired=Le jeton de rafraîchissement de l'API Google a expiré ou a été révoqué, récupère un nouveau jeton sur https://developers.google.com/oauthplayground/
+app.tooManyRequests=Trop de requêtes durant la dernière minute. S'il te plaît, réessaie plus tard.
+app.notPermissionChangeFbstate=Tu n'as pas la permission de modifier le fichier fbstate !
+app.notFoundFbstate=S'il te plaît, fournis un fbstate !
+app.changedFbstateSuccess=Fichier fbstate modifié avec succès !
+app.serverError=Erreur interne du serveur, s'il te plaît réessaie plus tard !
