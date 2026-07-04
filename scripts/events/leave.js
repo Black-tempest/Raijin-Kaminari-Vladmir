@@ -11,7 +11,7 @@ module.exports = {
 	},
 
 	langs: {
-		en: {
+		fr: {
 			session1: "matin",
 			session2: "midi",
 			session3: "après-midi",
@@ -22,66 +22,69 @@ module.exports = {
 		}
 	},
 
-	onStart: async ({ threadsData, message, event, api, usersData, getLang }) => {
-		if (event.logMessageType == "log:unsubscribe")
-			return async function () {
-				const { threadID } = event;
-				const threadData = await threadsData.get(threadID);
-				if (!threadData.settings.sendLeaveMessage)
-					return;
-				
-				const { leftParticipantFbId } = event.logMessageData;
-				if (leftParticipantFbId == api.getCurrentUserID())
-					return;
+	onEvent: async ({ threadsData, message, event, api, usersData, getLang }) => {
+		if (event.logMessageType !== "log:unsubscribe") return;
 
-				const timeNow = moment().tz("Africa/Abidjan");
-				const hours = timeNow.format("HH");
-				const threadName = threadData.threadName;
-				const userName = await usersData.getName(leftParticipantFbId);
+		const { threadID } = event;
+		const threadData = await threadsData.get(threadID);
+		
+		// Vérifie si les messages de départ sont activés dans la box
+		if (threadData && threadData.settings && threadData.settings.sendLeaveMessage === false) return;
+		
+		const { leftParticipantFbId } = event.logMessageData;
+		if (leftParticipantFbId == api.getCurrentUserID()) return;
 
-				let { leaveMessage = getLang("defaultLeaveMessage") } = threadData.data;
-				
-				const form = {
-					mentions: leaveMessage.match(/\{userNameTag\}/g) ? [{
-						tag: userName,
-						id: leftParticipantFbId
-					}] : []
-				};
+		const timeNow = moment().tz("Africa/Abidjan");
+		const hours = parseInt(timeNow.format("HH"), 10);
+		const threadName = threadData ? threadData.threadName : "Groupe";
+		const userName = await usersData.getName(leftParticipantFbId);
 
-				leaveMessage = leaveMessage
-					.replace(/\{userName\}|\{userNameTag\}/g, userName)
-					.replace(/\{type\}/g, leftParticipantFbId == event.author ? getLang("leaveType1") : getLang("leaveType2"))
-					.replace(/\{threadName\}|\{boxName\}/g, threadName)
-					.replace(/\{time\}/g, hours)
-					.replace(/\{session\}/g, hours <= 10 ?
-						getLang("session1") :
-						hours <= 12 ?
-							getLang("session2") :
-							hours <= 18 ?
-								getLang("session3") :
-								getLang("session4")
-					);
+		let leaveMessage = (threadData && threadData.data && threadData.data.leaveMessage) || getLang("defaultLeaveMessage");
+		
+		const form = {
+			mentions: leaveMessage.match(/\{userNameTag\}/g) ? [{
+				tag: userName,
+				id: leftParticipantFbId
+			}] : []
+		};
 
-				form.body = leaveMessage;
+		leaveMessage = leaveMessage
+			.replace(/\{userName\}|\{userNameTag\}/g, userName)
+			.replace(/\{type\}/g, leftParticipantFbId == event.author ? getLang("leaveType1") : getLang("leaveType2"))
+			.replace(/\{threadName\}|\{boxName\}/g, threadName)
+			.replace(/\{time\}/g, hours)
+			.replace(/\{session\}/g, hours <= 10 ?
+				getLang("session1") :
+				hours <= 12 ?
+					getLang("session2") :
+					hours <= 18 ?
+						getLang("session3") :
+						getLang("session4")
+			);
 
-				// --- GESTION DU GIF UCHIHA ---
-				const gifUrl = "https://i.ibb.co/zW1DZ0KX/686325842-1275234991430767-1463208806134011730-n-gif-nc-cat-106-ccb-1-7-nc-sid-cf94fc-nc-eui2-Ae-G.gif";
-				const pathGif = __dirname + `/tmp/leave_${leftParticipantFbId}.gif`;
+		form.body = leaveMessage;
 
-				try {
-					if (!fs.existsSync(__dirname + "/tmp")) fs.mkdirSync(__dirname + "/tmp");
-					
-					const { data } = await axios.get(gifUrl, { responseType: "arraybuffer" });
-					fs.writeFileSync(pathGif, Buffer.from(data, "utf-8"));
-					form.attachment = [fs.createReadStream(pathGif)];
-				} catch (e) {
-					console.error("Erreur lors du chargement du GIF Uchiha:", e);
-				}
+		// --- GESTION DU GIF UCHIHA ---
+		const gifUrl = "https://i.ibb.co/zW1DZ0KX/686325842-1275234991430767-1463208806134011730-n-gif-nc-cat-106-ccb-1-7-nc-sid-cf94fc-nc-eui2-Ae-G.gif";
+		const pathGif = __dirname + `/tmp/leave_${leftParticipantFbId}.gif`;
 
-				// Envoi du message avec suppression du fichier temporaire après envoi
-				message.send(form, () => {
-					if (fs.existsSync(pathGif)) fs.unlinkSync(pathGif);
-				});
-			};
+		try {
+			if (!fs.existsSync(__dirname + "/tmp")) {
+				fs.mkdirSync(__dirname + "/tmp", { recursive: true });
+			}
+			
+			const { data } = await axios.get(gifUrl, { responseType: "arraybuffer" });
+			fs.writeFileSync(pathGif, Buffer.from(data));
+			form.attachment = [fs.createReadStream(pathGif)];
+		} catch (e) {
+			console.error("Erreur lors du chargement du GIF Uchiha:", e);
+		}
+
+		// Envoi du message et nettoyage du fichier temporaire
+		message.send(form, () => {
+			if (fs.existsSync(pathGif)) {
+				fs.unlinkSync(pathGif);
+			}
+		});
 	}
 };
