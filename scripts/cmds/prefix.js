@@ -1,400 +1,122 @@
 const fs = require("fs-extra");
-const path = require("path");
-const axios = require("axios");
-const GIFEncoder = require("gifencoder");
-const { createCanvas, loadImage } = require("canvas");
-
-const CACHE_DIR = path.join(__dirname, "cache");
-fs.ensureDirSync(CACHE_DIR);
-
-// TON GIF SOLO LEVELING
-const SOLO_LEVELING_GIF = "https://i.ibb.co/JRF9mScB/d4a82da50f79.gif";
-
-async function fetchBuffer(url) {
-  try {
-    const res = await axios.get(url, { responseType: "arraybuffer", timeout: 20000 });
-    return Buffer.from(res.data);
-  } catch (e) {
-    console.log("Erreur fetch GIF:", e.message);
-    return null;
-  }
-}
-
-async function generatePrefixGif(newPrefix, threadName, type) {
-  const W = 850, H = 480;
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext("2d");
-
-  const encoder = new GIFEncoder(W, H);
-  const outPath = path.join(CACHE_DIR, `prefix_${Date.now()}.gif`);
-  encoder.createReadStream().pipe(fs.createWriteStream(outPath));
-
-  encoder.start();
-  encoder.setRepeat(0);
-  encoder.setDelay(100);
-  encoder.setQuality(12);
-
-  let backgroundFrame = null;
-  try {
-    const gifBuffer = await fetchBuffer(SOLO_LEVELING_GIF);
-    if (gifBuffer) backgroundFrame = await loadImage(gifBuffer);
-  } catch (e) {}
-
-  const isGlobal = type === "global";
-  const mainText = isGlobal? "SYSTEM UPDATE" : "DUNGEON CLEARED";
-  const subText = isGlobal? "Prefix global modifié" : "Prefix du groupe modifié";
-  const color = isGlobal? "#00d4ff" : "#00ff88";
-
-  for (let frameIndex = 0; frameIndex < 12; frameIndex++) {
-    ctx.clearRect(0, 0, W, H);
-
-    if (backgroundFrame) {
-      ctx.drawImage(backgroundFrame, 0, -(frameIndex * 3), W, H + 30);
-    } else {
-      ctx.fillStyle = "#0a0a1a";
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    ctx.fillStyle = "rgba(0, 10, 30, 0.65)";
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = color;
-    ctx.font = "bold 65px Arial";
-    ctx.textAlign = "center";
-    const texts = ["HUNTER", "S-RANK", "LEVEL UP", "SYSTEM", "SHADOW"];
-    for (let i = 0; i < texts.length; i++) {
-      ctx.save();
-      let x = W/2 + Math.cos(frameIndex * 0.4 + i) * 210;
-      let y = H/2 + Math.sin(frameIndex * 0.4 + i) * 150;
-      let angle = (frameIndex * 0.15 + i) * 0.5;
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.fillText(texts[i], 0, 0);
-      ctx.restore();
-    }
-    ctx.restore();
-
-    ctx.fillStyle = color;
-    ctx.font = "bold 50px Arial";
-    ctx.textAlign = "center";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 35;
-    ctx.fillText(mainText, W/2, 100);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "24px Arial";
-    ctx.fillText(subText, W/2, 140);
-
-    const boxX = W/2 - 230;
-    const boxY = 195;
-    const boxW = 460;
-    const boxH = 140;
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 30;
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    ctx.fillRect(boxX, boxY, boxW, boxH);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 22px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Nouveau Préfixe", W/2, boxY + 45);
-
-    ctx.fillStyle = color;
-    ctx.font = "bold 78px monospace";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 25;
-    ctx.fillText(newPrefix, W/2, boxY + 105);
-    ctx.shadowBlur = 0;
-
-    if (!isGlobal && threadName) {
-      ctx.fillStyle = "#bbbbbb";
-      ctx.font = "16px Arial";
-      ctx.fillText("Groupe: " + threadName, W/2, boxY + boxH + 30);
-    }
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    for (let i = 0; i < 8; i++) {
-      ctx.beginPath();
-      let x1 = 40 + i * 100;
-      let y1 = H - 40 + Math.sin(frameIndex * 0.6 + i) * 20;
-      let x2 = x1 + 25;
-      let y2 = y1 - 45;
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    }
-
-    ctx.fillStyle = "rgba(0, 212, 255, 0.9)";
-    ctx.font = "14px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText("System: Shadow Monarch v3.1", W - 20, H - 15);
-
-    encoder.addFrame(ctx);
-  }
-
-  encoder.finish();
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return outPath;
-}
-
-async function generateStatusGif(globalPrefix, threadPrefix, userName) {
-  const W = 850, H = 480;
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext("2d");
-
-  const encoder = new GIFEncoder(W, H);
-  const outPath = path.join(CACHE_DIR, `status_${Date.now()}.gif`);
-  encoder.createReadStream().pipe(fs.createWriteStream(outPath));
-
-  encoder.start();
-  encoder.setRepeat(0);
-  encoder.setDelay(100);
-  encoder.setQuality(12);
-
-  let backgroundFrame = null;
-  try {
-    const gifBuffer = await fetchBuffer(SOLO_LEVELING_GIF);
-    if (gifBuffer) backgroundFrame = await loadImage(gifBuffer);
-  } catch (e) {}
-
-  const color = "#00d4ff";
-
-  for (let frameIndex = 0; frameIndex < 12; frameIndex++) {
-    ctx.clearRect(0, 0, W, H);
-
-    if (backgroundFrame) {
-      ctx.drawImage(backgroundFrame, 0, -(frameIndex * 3), W, H + 30);
-    } else {
-      ctx.fillStyle = "#0a0a1a";
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    ctx.fillStyle = "rgba(0, 10, 30, 0.65)";
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = color;
-    ctx.font = "bold 65px Arial";
-    ctx.textAlign = "center";
-    const texts = ["HUNTER", "S-RANK", "LEVEL UP", "SYSTEM", "SHADOW"];
-    for (let i = 0; i < texts.length; i++) {
-      ctx.save();
-      let x = W/2 + Math.cos(frameIndex * 0.4 + i) * 210;
-      let y = H/2 + Math.sin(frameIndex * 0.4 + i) * 150;
-      let angle = (frameIndex * 0.15 + i) * 0.5;
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.fillText(texts[i], 0, 0);
-      ctx.restore();
-    }
-    ctx.restore();
-
-    ctx.fillStyle = color;
-    ctx.font = "bold 50px Arial";
-    ctx.textAlign = "center";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 35;
-    ctx.fillText("STATUS HUNTER", W/2, 100);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 26px Arial";
-    ctx.fillText(userName, W/2, 145);
-
-    const boxY = 200;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 25;
-    ctx.strokeRect(W/2 - 230, boxY, 460, 100);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    ctx.fillRect(W/2 - 230, boxY, 460, 100);
-
-    ctx.fillStyle = "#aaaaaa";
-    ctx.font = "18px Arial";
-    ctx.fillText("Global System", W/2, boxY + 30);
-
-    ctx.fillStyle = color;
-    ctx.font = "bold 72px monospace";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 20;
-    ctx.fillText(globalPrefix, W/2, boxY + 80);
-    ctx.shadowBlur = 0;
-
-    const boxY2 = 320;
-    ctx.strokeStyle = "#00ff88";
-    ctx.lineWidth = 4;
-    ctx.shadowColor = "#00ff88";
-    ctx.shadowBlur = 25;
-    ctx.strokeRect(W/2 - 230, boxY2, 460, 100);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    ctx.fillRect(W/2 - 230, boxY2, 460, 100);
-
-    ctx.fillStyle = "#aaaaaa";
-    ctx.font = "18px Arial";
-    ctx.fillText("This Dungeon", W/2, boxY2 + 30);
-
-    ctx.fillStyle = "#00ff88";
-    ctx.font = "bold 72px monospace";
-    ctx.shadowColor = "#00ff88";
-    ctx.shadowBlur = 20;
-    ctx.fillText(threadPrefix, W/2, boxY2 + 80);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "rgba(0, 212, 255, 0.9)";
-    ctx.font = "14px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText("Shadow Monarch v3.1", W - 20, H - 15);
-
-    encoder.addFrame(ctx);
-  }
-
-  encoder.finish();
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return outPath;
-}
-
 const { utils } = global;
 
 module.exports = {
-  config: {
-    name: "prefix",
-    version: "3.1",
-    author: "NTKhang & Christus",
-    countDown: 2,
-    role: 0,
-    description: "Change prefix avec GIF Solo Leveling + Status Hunter",
-    category: "config",
-    guide: {
-      en: "{pn} <new prefix>: change prefix groupe\n{pn} <new prefix> -g: change prefix global\n{pn} reset: reset prefix\n{pn}: show status GIF"
-    }
-  },
+	config: {
+		name: "prefix",
+	version: "1.5",
+		author: "NTKhang & Christus",
+		editor: "Camille Uchiha 🍓",
+		countDown: 5,
+		role: 0,
+		description: "Changer le préfixe du bot dans ton groupe ou pour tout le bot (admin bot seulement)",
+		category: "config",
+	guide: {
+			vi: " {pn} <new prefix>: thay đổi prefix mới trong box chat của bạn"
+				+ "\n Ví dụ:"
+				+ "\n {pn} #"
+				+ "\n\n {pn} <new prefix> -g: thay đổi prefix mới trong hệ thống bot (chỉ admin bot)"
+				+ "\n Ví dụ:"
+				+ "\n {pn} # -g"
+				+ "\n\n {pn} reset: thay đổi prefix trong box chat của bạn về mặc định",
+			en: " {pn} <new prefix>: change new prefix in your box chat"
+				+ "\n Example:"
+				+ "\n {pn} #"
+				+ "\n\n {pn} <new prefix> -g: change new prefix in system bot (only admin bot)"
+				+ "\n Example:"
+				+ "\n {pn} # -g"
+				+ "\n\n {pn} reset: change prefix in your box chat to default",
+			fr: " {pn} <nouveau prefix>: changer le prefix dans ton groupe"
+				+ "\n Exemple:"
+				+ "\n {pn} #"
+				+ "\n\n {pn} <nouveau prefix> -g: changer le prefix du bot entier (admin bot seulement)"
+				+ "\n Exemple:"
+				+ "\n {pn} # -g"
+				+ "\n\n {pn} reset: remettre le prefix par défaut dans ton groupe"
+	}
+	},
 
-  langs: {
-    en: {
-      reset: "✓ Prefix reset to default: %1",
-      onlyAdmin: "❌ Only Shadow Monarch can change global prefix",
-      confirmGlobal: "⚡ React to confirm SYSTEM UPDATE for all servers",
-      confirmThisThread: "⚔️ React to confirm DUNGEON CLEAR for this group",
-      successGlobal: "SYSTEM UPDATE COMPLETE\nNew global prefix: %1",
-      successThisThread: "DUNGEON CLEARED\nNew group prefix: %1",
-      myPrefix: "👋 Hunter %1\n➥ 🌐 Global: %2\n➥ 💬 This Dungeon: %3\nShadow Monarch at your service 🫡"
-    }
-  },
+	langs: {
+	vi: {
+			reset: "Đã reset prefix của bạn về mặc định: %1",
+			onlyAdmin: "Chỉ admin mới có thể thay đổi prefix hệ thống bot",
+			confirmGlobal: "Vui lòng thả cảm xúc bất kỳ vào tin nhắn này để xác nhận thay đổi prefix của toàn bộ hệ thống bot",
+			confirmThisThread: "Vui lòng thả cảm xúc bất kỳ vào tin nhắn này để xác nhận thay đổi prefix trong nhóm chat của bạn",
+			successGlobal: "Đã thay đổi prefix hệ thống bot thành: %1",
+			successThisThread: "Đã thay đổi prefix trong nhóm chat của bạn thành: %1",
+			myPrefix: "👋 Hey %1, did you ask for my prefix?\n➥ 🌐 Global: %2\n➥ 💬 This Chat: %3\nI'm %4 at your service 🫡"
+		},
+		en: {
+			reset: "Your prefix reset to default: %1",
+			onlyAdmin: "Only admin can change prefix of system bot",
+			confirmGlobal: "Please react to this message to confirm change prefix of system bot",
+			confirmThisThread: "Please react to this message to confirm change prefix in your box chat",
+			successGlobal: "Changed prefix of system bot to: %1",
+			successThisThread: "Changed prefix in your box chat to: %1",
+			myPrefix: "👋 Hey %1, did you ask for my prefix?\n➥ 🌐 Global: %2\n➥ 💬 This Chat: %3\nI'm %4 at your service 🫡"
+	},
+	fr: {
+			reset: `🍓━━━━━━━━🍓\n✅ 𝗥𝗘𝗜𝗡𝗜𝗧𝗜𝗔𝗟𝗜𝗦𝗘\nLe prefix a été remis par défaut: %1\n🍓━━━━━━━━🍓`,
+			onlyAdmin: `🍓━━━━━━━━🍓\n❌ 𝗘𝗥𝗥𝗘𝗨𝗥\n\nSeul l'admin du bot peut changer le prefix global\n🍓━━━━━━━━🍓`,
+			confirmGlobal: `🍓━━━━━━━━🍓\n⚠️ 𝗖𝗢𝗡𝗙𝗜𝗥𝗠𝗔𝗧𝗜𝗢𝗡\n\nRéagis à ce message pour confirmer le changement du prefix GLOBAL du bot en: %1\n🍓━━━━━━━━🍓`,
+			confirmThisThread: `🍓━━━━━━━━🍓\n⚠️ 𝗖𝗢𝗡𝗙𝗜𝗥𝗠𝗔𝗧𝗜𝗢𝗡\n\nRéagis à ce message pour confirmer le changement du prefix dans ce groupe en: %1\n🍓━━━━━━━━🍓`,
+			successGlobal: `🍓━━━━━━━━🍓\n✅ 𝗦𝗨𝗖𝗘̀𝗦\nPrefix global changé en: %1\n🍓━━━━━━━━🍓`,
+			successThisThread: `🍓━━━━━━━━🍓\n✅ 𝗦𝗨𝗖𝗘̀𝗦\nPrefix de ce groupe changé en: %1\n🍓━━━━━━━━🍓`,
+			myPrefix: `🍓━━━━━━━━🍓\n👋 𝗦𝗔𝗟𝗨𝗧 %1\n\n➥ 🌐 𝗚𝗹𝗼𝗯𝗮𝗹: %2\n➥ 💬 𝗜𝗰𝗶: %3\n\nJe suis %4 à ton service 🫡\n🍓━━━━━━━━🍓`
+		}
+	},
 
-  onStart: async function ({ message, role, args, commandName, event, threadsData, getLang }) {
-    if (!args[0]) {
-      return message.SyntaxError();
-    }
+	onStart: async function ({ message, role, args, commandName, event, threadsData, getLang }) {
+		if (!args[0])
+			return message.SyntaxError();
 
-    if (args[0] === "reset") {
-      await threadsData.set(event.threadID, null, "data.prefix");
-      return message.reply(getLang("reset", global.GoatBot.config.prefix));
-    }
+		if (args[0] == 'reset') {
+			await threadsData.set(event.threadID, null, "data.prefix");
+			return message.reply(getLang("reset", global.GoatBot.config.prefix));
+		}
 
-    const newPrefix = args[0];
-    const formSet = {
-      commandName,
-      author: event.senderID,
-      newPrefix
-    };
+		const newPrefix = args[0];
+		const formSet = {
+			commandName,
+			author: event.senderID,
+			newPrefix
+		};
 
-    if (args[1] === "-g") {
-      if (role < 2) {
-        return message.reply(getLang("onlyAdmin"));
-      } else {
-        formSet.setGlobal = true;
-      }
-    } else {
-      formSet.setGlobal = false;
-    }
+		if (args[1] === "-g")
+			if (role < 2)
+				return message.reply(getLang("onlyAdmin"));
+			else
+				formSet.setGlobal = true;
+		else
+			formSet.setGlobal = false;
 
-    return message.reply(args[1] === "-g"? getLang("confirmGlobal") : getLang("confirmThisThread"), (err, info) => {
-      formSet.messageID = info.messageID;
-      global.GoatBot.onReaction.set(info.messageID, formSet);
-    });
-  },
+		return message.reply(args[1] === "-g"? getLang("confirmGlobal", newPrefix) : getLang("confirmThisThread", newPrefix), (err, info) => {
+			formSet.messageID = info.messageID;
+			global.GoatBot.onReaction.set(info.messageID, formSet);
+		});
+	},
 
-  onReaction: async function ({ message, threadsData, event, Reaction, getLang }) {
-    const { author, newPrefix, setGlobal } = Reaction;
-    if (event.userID!== author) {
-      return;
-    }
+	onReaction: async function ({ message, threadsData, event, Reaction, getLang }) {
+		const { author, newPrefix, setGlobal } = Reaction;
+		if (event.userID!== author)
+			return;
+		if (setGlobal) {
+			global.GoatBot.config.prefix = newPrefix;
+			fs.writeFileSync(global.client.dirConfig, JSON.stringify(global.GoatBot.config, null, 2));
+			return message.reply(getLang("successGlobal", newPrefix));
+		}
+		else {
+			await threadsData.set(event.threadID, newPrefix, "data.prefix");
+			return message.reply(getLang("successThisThread", newPrefix));
+		}
+	},
 
-    const threadData = await threadsData.get(event.threadID);
-    const threadName = threadData?.threadName || "Unknown Dungeon";
-
-    if (setGlobal) {
-      global.GoatBot.config.prefix = newPrefix;
-      fs.writeFileSync(global.client.dirConfig, JSON.stringify(global.GoatBot.config, null, 2));
-
-      try {
-        await message.reply("⚙️ Initialisation du prefix en cours.");
-        const gifPath = await generatePrefixGif(newPrefix, null, "global");
-        return message.reply({
-          body: getLang("successGlobal", newPrefix),
-          attachment: fs.createReadStream(gifPath)
-        }, () => {
-          try { fs.removeSync(gifPath); } catch (e) {}
-        });
-      } catch (err) {
-        console.error(err);
-        return message.reply(getLang("successGlobal", newPrefix));
-      }
-    } else {
-      await threadsData.set(event.threadID, newPrefix, "data.prefix");
-
-      try {
-        await message.reply("⚙️ Nettoyage du donjon en cours...");
-        const gifPath = await generatePrefixGif(newPrefix, threadName, "local");
-        return message.reply({
-          body: getLang("successThisThread", newPrefix),
-          attachment: fs.createReadStream(gifPath)
-        }, () => {
-          try { fs.removeSync(gifPath); } catch (e) {}
-        });
-      } catch (err) {
-        console.error(err);
-        return message.reply(getLang("successThisThread", newPrefix));
-      }
-    }
-  },
-
-  onChat: async function ({ event, message, getLang, usersData }) {
-    if (event.body && event.body.toLowerCase() === "prefix") {
-      const userName = await usersData.getName(event.senderID);
-      const botName = global.GoatBot.config.nickNameBot || "Bot";
-      const globalPrefix = global.GoatBot.config.prefix;
-      const threadPrefix = utils.getPrefix(event.threadID);
-
-      try {
-        await message.reply("veuillez patienter...");
-        const gifPath = await generateStatusGif(globalPrefix, threadPrefix, userName);
-        return message.reply({
-          body: getLang("myPrefix", userName, globalPrefix, threadPrefix, botName),
-          attachment: fs.createReadStream(gifPath)
-        }, () => {
-          try { fs.removeSync(gifPath); } catch (e) {}
-        });
-      } catch (err) {
-        console.error(err);
-        return message.reply(getLang("myPrefix", userName, globalPrefix, threadPrefix, botName));
-      }
-    }
-  }
+	onChat: async function ({ event, message, getLang, usersData }) {
+		if (event.body && event.body.toLowerCase() === "prefix")
+			return async () => {
+				const userName = await usersData.getName(event.senderID);
+				const botName = global.GoatBot.config.nickNameBot || "Bot";
+				return message.reply(getLang("myPrefix", userName, global.GoatBot.config.prefix, utils.getPrefix(event.threadID), botName));
+			};
+	}
 };
