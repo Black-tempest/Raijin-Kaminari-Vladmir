@@ -5,7 +5,8 @@ module.exports = {
 		name: "logsbot",
 		isBot: true,
 	version: "1.5",
-	author: "NTKhang + Camille Uchiha",
+	author: "NTKhang",
+		editor: "Camille Uchiha 🍓",
 		envConfig: {
 			allow: true
 	},
@@ -13,13 +14,23 @@ module.exports = {
 	},
 
 	langs: {
-	vi: { ... },
-	en: { ... },
-	fr: {
-			title: "====== Logs Bot ======",
-			added: "\n✅\nEvent: bot ajouté dans un nouveau groupe\n- Ajouté par: %1",
-			kicked: "\n❌\nEvent: bot kick du groupe\n- Kick par: %1",
-			footer: "\n- UID: %1\n- Groupe: %2\n- ID Groupe: %3\n- Heure: %4"
+		vi: {
+			title: "====== Nhật ký bot ======",
+			added: "\n✅\nSự kiện: bot được thêm vào nhóm mới\n- Người thêm: %1",
+			kicked: "\n❌\nSự kiện: bot bị kick\n- Người kick: %1",
+			footer: "\n- User ID: %1\n- Nhóm: %2\n- ID nhóm: %3\n- Thời gian: %4"
+	},
+	en: {
+			title: "====== Bot logs ======",
+			added: "\n✅\nEvent: bot has been added to a new group\n- Added by: %1",
+			kicked: "\n❌\nEvent: bot has been kicked\n- Kicked by: %1",
+			footer: "\n- User ID: %1\n- Group: %2\n- Group ID: %3\n- Time: %4"
+		},
+		fr: {
+			title: `🍓━━━━━━━━🍓\n📋 𝗝𝗢𝗨𝗥𝗡𝗔𝗟 𝗗𝗨 𝗕𝗢𝗧\n🍓━━━━━━━━🍓`,
+			added: `\n✅ 𝗘́𝗩𝗘́𝗡𝗘𝗠𝗘𝗡𝗧: Le bot a été ajouté dans un nouveau groupe\n- 𝗔𝗷𝗼𝘂𝘁𝗲́ 𝗽𝗮𝗿: %1`,
+			kicked: `\n❌ 𝗘́𝗩𝗘́𝗡𝗘𝗠𝗘𝗡𝗧: Le bot a été expulsé\n- 𝗘𝘅𝗽𝘂𝗹𝘀𝗲́ 𝗽𝗮𝗿: %1`,
+			footer: `\n━━━━━━━━━━━━━━━━\n👤 𝗨𝘀𝗲𝗿 𝗜𝗗: %1\n👥 𝗚𝗿𝗼𝘂𝗽𝗲: %2\n🆔 𝗜𝗗 𝗚𝗿𝗼𝘂𝗽𝗲: %3\n⏰ 𝗛𝗲𝘂𝗿𝗲: %4\n🍓━━━━━━━━🍓`
 	}
 	},
 
@@ -27,7 +38,7 @@ module.exports = {
 		if (
 			(event.logMessageType == "log:subscribe" && event.logMessageData.addedParticipants.some(item => item.userFbId == api.getCurrentUserID()))
 			|| (event.logMessageType == "log:unsubscribe" && event.logMessageData.leftParticipantFbId == api.getCurrentUserID())
-	) return async function () {
+		) return async function () {
 			let msg = getLang("title");
 			const { author, threadID } = event;
 			if (author == api.getCurrentUserID())
