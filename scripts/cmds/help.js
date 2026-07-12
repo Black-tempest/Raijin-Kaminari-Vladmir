@@ -1,139 +1,259 @@
-const { commands, aliases } = global.GoatBot;
-const axios = require('axios');
+const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
 
-// Tes 7 liens images 225
-const IMAGES = [
-  "https://i.ibb.co/Vcs9dpFj/cb5df098763a.gif",
-  "https://i.ibb.co/N6ZHKhVg/a4ac47068586.gif",
-  "https://i.ibb.co/Dfz5dLHn/b3a36e215750.jpg",
-  "https://i.ibb.co/4nP2JZK7/d35b5f3b76a2.gif",
-  "https://i.ibb.co/Y4dh35Mh/4c78fe2b7b0d.gif",
-  "https://i.ibb.co/yTMnJP8/4278998b0421.gif",
-  "https://i.ibb.co/dsrvQbKS/45a1aa31f9c8.gif"
+const bgUrls = [
+  "https://i.imgur.com/02t5Ix3.gif",
+  "https://i.imgur.com/AyIAqjE.gif",
+  "https://i.imgur.com/x9cAPDl.gif",
+  "https://i.imgur.com/4HLXoeZ.gif",
+  "https://i.imgur.com/QFlSaOA.gif",
+  "https://i.imgur.com/mlvEALb.gif",
+  "https://i.imgur.com/bN82wyK.gif",
+  "https://i.imgur.com/FGEBT3B.gif",
+  "https://i.imgur.com/t6nron8.gif",
+  "https://i.imgur.com/46yg66T.gif",
+  "https://i.imgur.com/hMdQPJ9.gif",
+  "https://i.imgur.com/k4B6wc2.gif",
+  "https://i.imgur.com/k6Tb8IU.gif",
+  "https://i.imgur.com/45LT900.gif",
+  "https://i.imgur.com/v5SrfFv.gif"
 ];
 
-async function getRandomImage() {
-  const url = IMAGES[Math.floor(Math.random() * IMAGES.length)];
-  const tmpPath = path.join(__dirname, "..", "cache", `help_${Date.now()}.gif`);
-  await fs.ensureDir(path.dirname(tmpPath));
-  const response = await axios.get(url, { responseType: "arraybuffer" });
-  fs.writeFileSync(tmpPath, response.data);
-  return fs.createReadStream(tmpPath);
+function toBold(text) {
+  const map = {
+    A:"𝐀",B:"𝐁",C:"𝐂",D:"𝐃",E:"𝐄",F:"𝐅",G:"𝐆",H:"𝐇",I:"𝐈",J:"𝐉",
+    K:"𝐊",L:"𝐋",M:"𝐌",N:"𝐍",O:"𝐎",P:"𝐏",Q:"𝐐",R:"𝐑",S:"𝐒",T:"𝐓",
+    U:"𝐔",V:"𝐕",W:"𝐖",X:"𝐗",Y:"𝐘",Z:"𝐙",
+    a:"𝐚",b:"𝐛",c:"𝐜",d:"𝐝",e:"𝐞",f:"𝐟",g:"𝐠",h:"𝐡",i:"𝐢",j:"𝐣",
+    k:"𝐤",l:"𝐥",m:"𝐦",n:"𝐧",o:"𝐨",p:"𝐩",q:"𝐪",r:"𝐫",s:"𝐬",t:"𝐭",
+    u:"𝐮",v:"𝐯",w:"𝐰",x:"𝐱",y:"𝐲",z:"𝐳"
+  };
+  return text.split('').map(c => map[c] || c).join('');
 }
 
-function toCmdFont(text = "") {
-  const map = {
-    A:"𝖠",B:"𝖡",C:"𝖢",D:"𝖣",E:"𝖤",F:"𝖥",G:"𝖦",H:"𝖧",I:"𝖨",J:"𝖩",
-    K:"𝖪",L:"𝖫",M:"𝖬",N:"𝖭",O:"𝖮",P:"𝖯",Q:"𝖰",R:"𝖱",S:"𝖲",T:"𝖳",
-    U:"𝖴",V:"𝖵",W:"𝖶",X:"𝖷",Y:"𝖸",Z:"𝖹",
-    a:"𝖺",b:"𝖻",c:"𝖼",d:"𝖽",e:"𝖾",f:"𝖿",g:"𝗀",h:"𝗁",i:"𝗂",j:"𝗃",
-    k:"𝗄",l:"𝗅",m:"𝗆",n:"𝗇",o:"𝗈",p:"𝗉",q:"𝗊",r:"𝗋",s:"𝗌",t:"𝗍",
-    u:"𝗎",v:"𝗏",w:"𝗐",x:"𝗑",y:"𝗒",z:"𝗓",
-    " ":" "
-  };
-  return text.split("").map(c => map[c] || c).join("");
+function normalizeCategory(cat) {
+  if (!cat) return "other";
+  return cat.toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "").trim();
 }
 
-function toQuestionFont(text = "") {
-  const map = {
-    A:"𝐴",B:"𝐵",C:"𝐶",D:"𝐷",E:"𝐸",F:"𝐹",G:"𝐺",H:"𝐻",I:"𝐼",J:"𝐽",
-    K:"𝐾",L:"𝐿",M:"𝑀",N:"𝑁",O:"𝑂",P:"𝑃",Q:"𝑄",R:"𝑅",S:"𝑆",T:"𝑇",
-    U:"𝑈",V:"𝑉",W:"𝑊",X:"𝑋",Y:"𝑌",Z:"𝑍",
-    a:"𝑎",b:"𝑏",c:"𝑐",d:"𝑑",e:"𝑒",f:"𝑓",g:"𝑔",h:"ℎ",i:"𝑖",j:"𝑗",
-    k:"𝑘",l:"𝑙",m:"𝑚",n:"𝑛",o:"𝑜",p:"𝑝",q:"𝑞",r:"𝑟",s:"𝑠",t:"𝑡",
-    u:"𝑢",v:"𝑣",w:"𝑤",x:"𝑥",y:"𝑦",z:"𝑧",
-    " ":" "
-  };
-  return text.split("").map(c => map[c] || c).join("");
+function cleanCategoryName(cat) {
+  if (!cat) return "OTHER";
+  return cat.trim().toUpperCase();
+}
+
+function roleText(role) {
+  if (role == 0) return "All users";
+  if (role == 1) return "Group admin";
+  if (role == 2) return "Bot admin";
+  return "Unknown";
+}
+
+async function sendHelpPage(pageIndex, pages, message, senderID) {
+  const text = pages[pageIndex];
+  const gifUrl = bgUrls[pageIndex % bgUrls.length];
+
+  let attachmentStream = null;
+  try {
+    const response = await axios.get(gifUrl, {
+      responseType: "stream",
+      timeout: 10000,
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+    const tmpDir = path.join(__dirname, "../tmp");
+    fs.ensureDirSync(tmpDir);
+    const tmpPath = path.join(tmpDir, `help_${senderID}_${Date.now()}.gif`);
+    const writer = fs.createWriteStream(tmpPath);
+    response.data.pipe(writer);
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+    attachmentStream = fs.createReadStream(tmpPath);
+    setTimeout(() => { try { fs.unlinkSync(tmpPath); } catch {} }, 15000);
+  } catch (err) {
+    console.error("[help] GIF download error:", err.message);
+  }
+
+  try {
+    return await message.reply({
+      body: text,
+      attachment: attachmentStream || undefined
+    });
+  } catch {
+    return await message.reply({
+      body: text,
+      attachment: attachmentStream ? [attachmentStream] : undefined
+    });
+  }
 }
 
 module.exports = {
   config: {
     name: "help",
-    version: "6.5",
-    author: "Christus", // Pas touché
-    editor: "Camille Uchiha", // Ajouté
-    countDown: 2,
+    version: "11.0",
+    author: "Ivdra Uchiwa",
     role: 0,
-    shortDescription: { en: "Explore all bot commands" },
-    category: "info",
-    guide: { en: "help <command>" }, // -ai supprimé
+    category: "info"
   },
 
-  onStart: async function ({ message, args, event, usersData }) {
-    try {
-      const uid = event.senderID;
-      const attachment = await getRandomImage(); // Image random
+  onStart: async function ({ message, args, event, usersData, api }) {
+    const { getPrefix } = global.utils;
+    const prefix = await getPrefix(event.threadID);
+    const senderID = event.senderID;
+    const { commands, aliases } = global.GoatBot;
 
-      let avatarStream;
-      try {
-        const avatarUrl = await usersData.getAvatarUrl(uid);
-        avatarStream = await global.utils.getStreamFromURL(avatarUrl);
-      } catch {
-        avatarStream = await global.utils.getStreamFromURL(
-          `https://graph.facebook.com/${uid}/picture?width=720&height=720`
-        );
+    const categories = {};
+    for (const [name, value] of commands) {
+      const rawCat = value.config?.category || "OTHER";
+      const key = normalizeCategory(rawCat);
+      if (!categories[key]) {
+        categories[key] = { displayName: cleanCategoryName(rawCat), cmds: new Set() };
       }
+      categories[key].cmds.add(name);
+    }
 
-      // BLOC -AI SUPPRIMÉ ✅
-
-      if (!args || args.length === 0) {
-        let body = "📚 GOAT BOT COMMANDS\n";
-
-        const categories = {};
-        for (const [name, command] of commands) {
-          const category = command.config.category || "Misc";
-          if (!categories[category]) categories[category] = [];
-          categories[category].push(name);
-        }
-
-        for (const [category, cmds] of Object.entries(categories)) {
-          body += `\n[${toCmdFont(category)}]\n`;
-          body += cmds.map(c => `• ${toCmdFont(c)}`).join("\n") + "\n";
-        }
-
-        body += `\nTotal: ${commands.size} commandes\n`;
-        body += `Page 1/${Math.ceil(commands.size/20)}`;
-
-        return message.reply({
-          body: body.trim(),
-          attachment // Image random ici
-        });
-      }
-
-      const commandName = args[0].toLowerCase();
-      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
-
-      if (!command) {
-        return message.reply({
-          body: `❌ Command "${commandName}" not found.`,
-          attachment // Image random ici aussi
-        });
-      }
-
-      const cfg = command.config;
-      const body = `
-
-📝 Description: ${cfg.longDescription?.en || cfg.shortDescription?.en || "No description"}
-📁 Category: ${cfg.category || "Misc"}
-🔖 Aliases: ${Array.isArray(cfg.aliases)? cfg.aliases.join(", ") : "None"}
-👑 Author: ${cfg.author}
-✏️ Editor: ${cfg.editor || "None"}
-🔢 Version: ${cfg.version}
-⏰ Cooldown: ${cfg.countDown}s
-👤 Role: ${cfg.role}
-📖 Guide: ${cfg.guide?.en || "No guide"}
-      `.trim();
-
-      return message.reply({
-        body,
-        attachment // Image random ici aussi
+    const allCmds = [];
+    Object.values(categories)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName))
+      .forEach(cat => {
+        const sorted = [...cat.cmds].sort((a, b) => a.localeCompare(b));
+        sorted.forEach(cmd => allCmds.push({ name: cmd, category: cat.displayName }));
       });
 
-    } catch (e) {
-      console.log(e);
+    const perPage = 10;
+    const pages = [];
+    for (let i = 0; i < allCmds.length; i += perPage) {
+      const chunk = allCmds.slice(i, i + perPage);
+      let text = `📄 Page ${pages.length + 1}/${Math.ceil(allCmds.length / perPage)}\n`;
+      const byCat = {};
+      chunk.forEach(cmd => {
+        if (!byCat[cmd.category]) byCat[cmd.category] = [];
+        byCat[cmd.category].push(cmd.name);
+      });
+      for (const [cat, names] of Object.entries(byCat)) {
+        text += `\n【 ${toBold(cat)} 】\n`;
+        names.forEach(n => text += `➩ ${toBold(n)} 🌹\n`);
+      }
+      text += `\n✨ Total: ${commands.size} commandes\n`;
+      text += `📌 Use: ${prefix}help <commande>`;
+      pages.push(text);
     }
+
+    let targetPage = 0;
+    if (args[0]) {
+      if (/^\d+$/.test(args[0])) {
+        const pageNum = parseInt(args[0]);
+        if (pageNum < 1 || pageNum > pages.length) {
+          return message.reply(`❌ Page ${pageNum} invalide. Il y a ${pages.length} page(s).`);
+        }
+        targetPage = pageNum - 1;
+      } else {
+        const cmdName = args[0].toLowerCase();
+        const cmd = commands.get(cmdName) || commands.get(aliases.get(cmdName));
+        if (!cmd) return message.reply(`❌ Commande "${cmdName}" introuvable.`);
+
+        const cfg = cmd.config;
+        return message.reply(
+`╔『 📌ℂ𝕆𝕄𝕄𝔸𝔻 𝕀ℕ𝔽𝕆』╗
+
+➩ Name: ${toBold(cfg.name)}
+➩ Description: ${cfg.longDescription?.en || "Aucune description"}
+➩ Aliases: ${cfg.aliases?.join(", ") || "Aucun"}
+➩ Version: ${cfg.version || "1.0"}
+➩ Role: ${roleText(cfg.role)}
+➩ Cooldown: ${cfg.countDown || 2}s
+➩ Author: ${cfg.author || "Unknown"}
+
+📖 Usage:
+${toBold((cfg.guide?.en || "Aucun guide")
+  .replace(/{pn}/g, prefix)
+  .replace(/{n}/g, cfg.name))}
+
+╚═══════════════╝`
+        );
+      }
+    }
+
+    const sent = await sendHelpPage(targetPage, pages, message, senderID);
+    const msgID = sent.messageID;
+
+    if (pages.length > 1) {
+      try {
+        await message.react("◀️");
+        const numEmojis = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
+        for (let i = 0; i < Math.min(pages.length, 10); i++) {
+          await message.react(numEmojis[i]);
+        }
+        await message.react("▶️");
+      } catch {}
+    }
+
+    global.GoatBot.onReaction.set(msgID, {
+      commandName: "help",
+      pages,
+      currentPage: targetPage,
+      userID: senderID,
+      messageID: msgID
+    });
+
+    setTimeout(() => {
+      global.GoatBot.onReaction.delete(msgID);
+    }, 300000);
+  },
+
+  onReaction: async function ({ message, event, Reaction, api }) {
+    const { pages, currentPage, userID, messageID } = Reaction;
+    if (event.userID !== userID) return;
+
+    const emoji = event.reaction;
+    let newPage = currentPage;
+
+    if (emoji === "▶️") {
+      newPage = Math.min(currentPage + 1, pages.length - 1);
+    } else if (emoji === "◀️") {
+      newPage = Math.max(currentPage - 1, 0);
+    } else {
+      const idx = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"].indexOf(emoji);
+      if (idx !== -1 && idx < pages.length) newPage = idx;
+    }
+
+    if (newPage !== currentPage) {
+      try {
+        await api.unsendMessage(messageID).catch(() => {});
+        const newSent = await sendHelpPage(newPage, pages, message, userID);
+        const newMsgID = newSent.messageID;
+
+        Reaction.currentPage = newPage;
+        Reaction.messageID = newMsgID;
+        global.GoatBot.onReaction.set(newMsgID, Reaction);
+        global.GoatBot.onReaction.delete(messageID);
+
+        if (pages.length > 1) {
+          try {
+            await api.setMessageReaction(newMsgID, "◀️", false);
+            const numEmojis = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
+            for (let i = 0; i < Math.min(pages.length, 10); i++) {
+              await api.setMessageReaction(newMsgID, numEmojis[i], false);
+            }
+            await api.setMessageReaction(newMsgID, "▶️", false);
+          } catch {}
+        }
+
+        clearTimeout(Reaction._timeout);
+        Reaction._timeout = setTimeout(() => {
+          global.GoatBot.onReaction.delete(newMsgID);
+        }, 300000);
+
+      } catch (err) {
+        console.error("[help] page change error:", err.message);
+      }
+    }
+
+    try {
+      await api.setMessageReaction(event.messageID, "🗑️", false);
+    } catch {}
   }
 };
