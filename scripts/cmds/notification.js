@@ -1,15 +1,76 @@
 const fs = require("fs-extra");
 const path = require("path");
+const { createCanvas, loadImage } = require("canvas");
+const axios = require("axios");
+
+const bgImages = [
+  "https://i.ibb.co/vxxVjgyz/80fbf8c6617f.jpg",
+  "https://i.ibb.co/8LyVCBYx/994e8a5f509e.jpg",
+  "https://i.ibb.co/N6NqgHHg/852165402999.jpg",
+  "https://i.ibb.co/27QzrshX/91c0ac4416b0.jpg",
+  "https://i.ibb.co/zHXgFgyS/bb743523e49e.jpg",
+  "https://i.ibb.co/rGwZYr9b/a1bc806cd1c0.jpg"
+];
+
+async function generateNotificationImage(messageText) {
+  const W = 800, H = 600;
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext("2d");
+
+  const bgUrl = bgImages[Math.floor(Math.random() * bgImages.length)];
+  try {
+    const resp = await axios.get(bgUrl, { responseType: "arraybuffer", timeout: 10000 });
+    const bg = await loadImage(Buffer.from(resp.data));
+    ctx.drawImage(bg, 0, 0, W, H);
+  } catch {
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(0, 0, W, H);
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("fr-FR");
+  const timeStr = now.toLocaleTimeString("fr-FR");
+  const dateTime = `${dateStr} ${timeStr}`;
+
+  const colors = ["#ff4d4d", "#4dff4d", "#4d4dff", "#ffff4d", "#ff4dff", "#4dffff"];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+
+  ctx.textAlign = "center";
+  ctx.font = "bold 36px 'Segoe UI', Arial";
+  ctx.fillStyle = color;
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = 10;
+  ctx.fillText("⚠️ NOTIFICATION GLOBALE ⚠️", W / 2, 80);
+
+  ctx.font = "bold 24px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(dateTime, W / 2, 130);
+
+  ctx.font = "bold 28px Arial";
+  ctx.fillStyle = "#ffffff";
+  const lines = messageText.split("\n");
+  let y = 200;
+  for (const line of lines) {
+    ctx.fillText(line, W / 2, y);
+    y += 40;
+  }
+
+  ctx.shadowBlur = 0;
+  return canvas.toBuffer("image/png");
+}
 
 module.exports = {
   config: {
     name: "notification",
     aliases: ["noti"],
-    version: "1.4",
+    version: "3.0",
     author: "Raijin Kaminari",
     role: 2,
     category: "admin",
-    description: "Envoie une notification globale à tous les groupes avec barre de progression"
+    description: "Envoie une notification globale avec image et barre de progression."
   },
 
   onStart: async function ({ message, args, api, event, usersData }) {
@@ -46,12 +107,94 @@ Tapez **oui** pour confirmer ou **non** pour annuler.
   },
 
   onChat: async function ({ event, api, usersData }) {
-    if (!event.body || !global.GoatBot.confirmations) return;
+    const body = event.body || "";
+    const senderID = event.senderID;
 
-    const replyText = event.body.toLowerCase().trim();
+    if (global.GoatBot.notifications && event.messageReply) {
+      const replyToID = event.messageReply.messageID;
+      for (let i = global.GoatBot.notifications.length - 1; i >= 0; i--) {
+        const notif = global.GoatBot.notifications[i];
+        const found = notif.sentMessages.some(m => m.messageID === replyToID);
+        if (!found) continue;
+
+        const replierID = senderID;
+        let replierName = "Utilisateur inconnu";
+        try { replierName = await usersData.getName(replierID); } catch {}
+
+        let replyContent = body;
+        const attachments = event.attachments || [];
+        if (!replyContent.trim() && attachments.length === 0) replyContent = "[Message vide]";
+        const attUrls = attachments.map(att => att.url || "pièce jointe");
+
+        let groupName = "Inconnu";
+        try {
+          const threadInfo = await api.getThreadInfo(event.threadID);
+          groupName = threadInfo.threadName || "Groupe sans nom";
+        } catch {}
+
+        const progressMsg = await api.sendMessage(
+          `📤 Envoi de votre réponse...\n[▒▒▒▒▒▒▒▒▒▒] 0%`,
+          event.threadID
+        );
+        const progressMsgID = progressMsg.messageID;
+        for (let j = 0; j <= 10; j++) {
+          const filled = "▓".repeat(j) + "▒".repeat(10 - j);
+          const percent = j * 10;
+          try {
+            await api.editMessage(
+              `📤 Envoi de votre réponse...\n[${filled}] ${percent}%`,
+              progressMsgID
+            );
+          } catch {}
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+
+        const adminMsgBody =
+`▬▬▬▬▬▬▬▬▬▬▬▬
+💬 𝗥𝗘𝗣𝗟𝗬 𝗡𝗢𝗧𝗜𝗙𝗜𝗖𝗔𝗧𝗜𝗢𝗡
+▬▬▬▬▬▬▬▬▬▬▬▬
+
+👤 Utilisateur : ${replierName}
+📌 Groupe : ${groupName}
+📩 Message :
+${replyContent}
+
+▬▬▬▬▬▬▬▬▬▬▬▬
+👑 Répondu depuis la notification de ${notif.adminName}
+▬▬▬▬▬▬▬▬▬▬▬▬`;
+
+        let sentToAdmin = false;
+        try {
+          await api.sendMessage(
+            { body: adminMsgBody, attachment: attUrls.length > 0 ? attUrls : undefined },
+            notif.sourceThreadID
+          );
+          sentToAdmin = true;
+        } catch (err1) {
+          try {
+            await api.sendMessage(
+              { body: adminMsgBody, attachment: attUrls.length > 0 ? attUrls : undefined },
+              notif.adminID
+            );
+            sentToAdmin = true;
+          } catch (err2) {}
+        }
+
+        const finalMsg = sentToAdmin
+          ? "✅ Votre réponse a bien été envoyée à l'administrateur."
+          : "❌ Impossible de transmettre votre réponse pour le moment.";
+        try {
+          await api.editMessage(finalMsg, progressMsgID);
+        } catch {}
+        return;
+      }
+    }
+
+    if (!body || !global.GoatBot.confirmations) return;
+
+    const replyText = body.toLowerCase().trim();
     if (replyText !== "oui" && replyText !== "non") return;
 
-    const senderID = event.senderID;
     const confirmEntry = global.GoatBot.confirmations.find(
       c => c.adminID === senderID && c.messageID === event.messageReply?.messageID
     );
@@ -71,6 +214,13 @@ Tapez **oui** pour confirmer ou **non** pour annuler.
       sourceGroupName = sourceThreadInfo.threadName || "Groupe sans nom";
     } catch {}
 
+    const imageBuffer = await generateNotificationImage(messageContent);
+    const tmpDir = path.join(__dirname, "../tmp");
+    fs.ensureDirSync(tmpDir);
+    const tmpImagePath = path.join(tmpDir, `notif_${Date.now()}.png`);
+    fs.writeFileSync(tmpImagePath, imageBuffer);
+    const imageStream = fs.createReadStream(tmpImagePath);
+
     const allThreads = await api.getThreadList(100, null, ["INBOX"]);
     const total = allThreads.length;
     let success = 0;
@@ -83,19 +233,20 @@ Tapez **oui** pour confirmer ou **non** pour annuler.
     );
     const progressMsgID = progressMsg.messageID;
 
-    const updateProgress = async (current, total, successCount, failCount) => {
+    const updateProgress = async (current) => {
       const percent = Math.floor((current / total) * 100);
       const filled = Math.floor(percent / 10);
       const bar = "▓".repeat(filled) + "▒".repeat(10 - filled);
-      await api.editMessage(
-        `📡 Envoi en cours...\n[${bar}] ${percent}% (${successCount + failCount}/${total})`,
-        progressMsgID
-      );
+      try {
+        await api.editMessage(
+          `📡 Envoi en cours...\n[${bar}] ${percent}% (${success + fail}/${total})`,
+          progressMsgID
+        );
+      } catch {}
     };
 
     for (let i = 0; i < allThreads.length; i++) {
-      const thread = allThreads[i];
-      const tid = thread.threadID;
+      const tid = allThreads[i].threadID;
       let targetName = "Inconnu";
       try {
         const tInfo = await api.getThreadInfo(tid);
@@ -118,20 +269,25 @@ ${messageContent}
 ▬▬▬▬▬▬▬▬▬▬▬▬`;
 
       try {
-        const sentMsg = await api.sendMessage(notificationText, tid);
+        const sentMsg = await api.sendMessage(
+          { body: notificationText, attachment: imageStream },
+          tid
+        );
         sentMessages.push({ messageID: sentMsg.messageID, threadID: tid });
         success++;
       } catch {
         fail++;
       }
 
-      if ((i + 1) % 3 === 0 || i === allThreads.length - 1) {
-        await updateProgress(i + 1, total, success, fail);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      if (i % 2 === 0 || i === allThreads.length - 1) {
+        await updateProgress(i + 1);
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
 
-    await updateProgress(allThreads.length, total, success, fail);
+    fs.unlinkSync(tmpImagePath);
+
+    await updateProgress(total);
 
     const finalReport =
 `✅ Notification terminée.
@@ -143,13 +299,16 @@ ${messageContent}
 ▬▬▬▬▬▬▬▬▬▬▬▬
 👑 Créateur : Raijin Kaminari`;
 
-    await api.editMessage(finalReport, progressMsgID);
+    try {
+      await api.editMessage(finalReport, progressMsgID);
+    } catch {}
 
     if (!global.GoatBot.notifications) global.GoatBot.notifications = [];
     global.GoatBot.notifications.push({
       adminID: senderID,
       adminName,
       sourceGroupName,
+      sourceThreadID: sourceThreadID,
       sentMessages,
       timestamp: Date.now()
     });
@@ -159,54 +318,5 @@ ${messageContent}
         n => n.adminID !== senderID || n.timestamp !== Date.now()
       );
     }, 86400000);
-  },
-
-  onReply: async function ({ event, api, usersData }) {
-    if (!global.GoatBot.notifications) return;
-
-    const replyToID = event.messageReply?.messageID;
-    if (!replyToID) return;
-
-    for (let i = global.GoatBot.notifications.length - 1; i >= 0; i--) {
-      const notif = global.GoatBot.notifications[i];
-      const found = notif.sentMessages.some(m => m.messageID === replyToID);
-      if (!found) continue;
-
-      const replierID = event.senderID;
-      const replierName = await usersData.getName(replierID) || "Utilisateur inconnu";
-      const replyContent = event.body || "[Pièce jointe]";
-
-      let groupName = "Inconnu";
-      try {
-        const threadInfo = await api.getThreadInfo(event.threadID);
-        groupName = threadInfo.threadName || "Groupe sans nom";
-      } catch {}
-
-      const msgToAdmin =
-`▬▬▬▬▬▬▬▬▬▬▬▬
-💬 𝗥𝗘𝗣𝗟𝗬 𝗡𝗢𝗧𝗜𝗙𝗜𝗖𝗔𝗧𝗜𝗢𝗡
-▬▬▬▬▬▬▬▬▬▬▬▬
-
-👤 Utilisateur : ${replierName}
-📌 Groupe : ${groupName}
-📩 Message :
-${replyContent}
-
-▬▬▬▬▬▬▬▬▬▬▬▬
-👑 Répondu depuis la notification de ${notif.adminName}
-▬▬▬▬▬▬▬▬▬▬▬▬`;
-
-      try {
-        await api.sendMessage(msgToAdmin, notif.adminID);
-      } catch {
-        try {
-          const adminThreadInfo = await api.getThreadInfo(notif.adminID);
-          if (adminThreadInfo.isGroup) {
-            await api.sendMessage(msgToAdmin, notif.adminID);
-          }
-        } catch {}
-      }
-      break;
-    }
   }
 };
