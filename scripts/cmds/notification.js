@@ -1,258 +1,212 @@
-const { getStreamsFromAttachment } = global.utils;
-const axios = require('axios');
-const fs = require('fs-extra');
-const path = require('path');
-const { createCanvas, loadImage } = require('canvas');
-
-const notificationMemory = {};
-
-async function getBuffer(url) {
-  try {
-    const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
-    return Buffer.from(response.data);
-  } catch {
-    return null;
-  }
-}
-
-async function drawAvatar(ctx, url, x, y, radius, fallbackLetter, fallbackBg) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2, true);
-  ctx.closePath();
-  ctx.clip();
-
-  const buffer = url ? await getBuffer(url) : null;
-  if (buffer) {
-    try {
-      const img = await loadImage(buffer);
-      ctx.drawImage(img, x, y, radius * 2, radius * 2);
-      ctx.restore();
-      return;
-    } catch {}
-  }
-
-  ctx.fillStyle = fallbackBg;
-  ctx.fillRect(x, y, radius * 2, radius * 2);
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = `bold ${radius}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(fallbackLetter, x + radius, y + radius);
-  ctx.restore();
-}
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports = {
   config: {
     name: "notification",
-    aliases: ["notify", "noti"],
-    version: "14.0",
-    author: "Camille uchiha",
-    countDown: 5,
+    aliases: ["noti"],
+    version: "1.4",
+    author: "Raijin Kaminari",
     role: 2,
-    category: "owner",
-    shortDescription: "Broadcast Pro Canvas avec Avatars et Heure",
-    longDescription: "Génère un Canvas professionnel incluant l'avatar de l'admin, du groupe et l'heure système.",
-    guide: { en: `Usage: {pn} <message>` },
-    usePrefix: false,
-    noPrefix: true
+    category: "admin",
+    description: "Envoie une notification globale à tous les groupes avec barre de progression"
   },
 
-  onStart: async function({ message, api, event, threadsData, envCommands, commandName, args }) {
-    const { delayPerGroup = 400 } = envCommands[commandName] || {};
-    const textToDraw = args.join(" ");
-    if (!textToDraw) return message.reply(`[SYSTEM] ERREUR: Contenu du message vide.`);
+  onStart: async function ({ message, args, api, event, usersData }) {
+    if (!args[0]) return message.reply("❌ Veuillez entrer le message à diffuser.");
 
-    const cacheDir = path.join(__dirname, 'cache');
-    const cachePath = path.join(cacheDir, `noti_pro_${Date.now()}.jpg`);
-    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+    const msg = args.join(" ");
+    const senderID = event.senderID;
+    const adminName = await usersData.getName(senderID) || "Admin";
 
-    const adminID = event.senderID;
-    let adminAvatarUrl = `https://graph.facebook.com/${adminID}/picture?width=200&height=200`;
-    let adminName = "Administrateur";
-    try {
-      const usersInfo = await api.getUserInfo(adminID);
-      adminName = usersInfo[adminID]?.name || adminName;
-    } catch {}
+    return message.reply(
+`▬▬▬▬▬▬▬▬▬▬▬▬
+⚠️ 𝗖𝗢𝗡𝗙𝗜𝗥𝗠𝗔𝗧𝗜𝗢𝗡
+▬▬▬▬▬▬▬▬▬▬▬▬
 
-    const allThreads = (await threadsData.getAll())
-      .filter(t => t.isGroup && t.members.find(m => m.userID == api.getCurrentUserID())?.inGroup);
+👤 Admin : ${adminName}
+📝 Message à diffuser :
+${msg}
 
-    if (!allThreads.length) return message.reply(`[SYSTEM] INFO: Aucun groupe cible disponible.`);
+Voulez-vous vraiment envoyer cette notification ?
+Tapez **oui** pour confirmer ou **non** pour annuler.
+▬▬▬▬▬▬▬▬▬▬▬▬`,
+      (err, info) => {
+        if (err) return;
+        global.GoatBot.confirmations = global.GoatBot.confirmations || [];
+        global.GoatBot.confirmations.push({
+          messageID: info.messageID,
+          adminID: senderID,
+          adminName: adminName,
+          messageContent: msg,
+          threadID: event.threadID
+        });
+      }
+    );
+  },
 
-    message.reply(`[SYSTEM] Envoie en cours..⏳(${allThreads.length} groupes)...`);
+  onChat: async function ({ event, api, usersData }) {
+    if (!event.body || !global.GoatBot.confirmations) return;
 
-    const bgImageUrl = 'https://i.ibb.co/F44C5WTs/e2648878efd8.jpg';
-    let bgImage = null;
-    const bgBuffer = await getBuffer(bgImageUrl);
-    if (bgBuffer) {
-      try {
-        bgImage = await loadImage(bgBuffer);
-      } catch {}
+    const replyText = event.body.toLowerCase().trim();
+    if (replyText !== "oui" && replyText !== "non") return;
+
+    const senderID = event.senderID;
+    const confirmEntry = global.GoatBot.confirmations.find(
+      c => c.adminID === senderID && c.messageID === event.messageReply?.messageID
+    );
+    if (!confirmEntry) return;
+
+    global.GoatBot.confirmations = global.GoatBot.confirmations.filter(c => c !== confirmEntry);
+
+    if (replyText === "non") {
+      return api.sendMessage("❌ Notification annulée.", event.threadID);
     }
 
-    let sendSuccess = 0;
-    const sendError = [];
+    const { adminName, messageContent, threadID: sourceThreadID } = confirmEntry;
 
-    for (const thread of allThreads) {
-      let groupName = thread.name || "Groupe sans nom";
-      let groupAvatarUrl = null;
+    let sourceGroupName = "Inconnu";
+    try {
+      const sourceThreadInfo = await api.getThreadInfo(sourceThreadID);
+      sourceGroupName = sourceThreadInfo.threadName || "Groupe sans nom";
+    } catch {}
 
+    const allThreads = await api.getThreadList(100, null, ["INBOX"]);
+    const total = allThreads.length;
+    let success = 0;
+    let fail = 0;
+    const sentMessages = [];
+
+    const progressMsg = await api.sendMessage(
+      `📡 Début de l'envoi...\n[▒▒▒▒▒▒▒▒▒▒] 0% (0/${total})`,
+      sourceThreadID
+    );
+    const progressMsgID = progressMsg.messageID;
+
+    const updateProgress = async (current, total, successCount, failCount) => {
+      const percent = Math.floor((current / total) * 100);
+      const filled = Math.floor(percent / 10);
+      const bar = "▓".repeat(filled) + "▒".repeat(10 - filled);
+      await api.editMessage(
+        `📡 Envoi en cours...\n[${bar}] ${percent}% (${successCount + failCount}/${total})`,
+        progressMsgID
+      );
+    };
+
+    for (let i = 0; i < allThreads.length; i++) {
+      const thread = allThreads[i];
+      const tid = thread.threadID;
+      let targetName = "Inconnu";
       try {
-        const threadInfo = await api.getThreadInfo(thread.threadID);
-        groupName = threadInfo.threadName || groupName;
-        if (threadInfo.imageSrc) groupAvatarUrl = threadInfo.imageSrc;
+        const tInfo = await api.getThreadInfo(tid);
+        targetName = tInfo.threadName || "Groupe sans nom";
       } catch {}
 
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const notificationText =
+`▬▬▬▬▬▬▬▬▬▬▬▬
+⚠️ 𝗡𝗢𝗧𝗜𝗙𝗜𝗖𝗔𝗧𝗜𝗢𝗡 𝗚𝗟𝗢𝗕𝗔𝗟𝗘 ⚠️
+▬▬▬▬▬▬▬▬▬▬▬▬
+
+📢 Message de l'admin : ${adminName}
+📌 Envoyé depuis : ${sourceGroupName}
+📌 Groupe : ${targetName}
+
+${messageContent}
+
+▬▬▬▬▬▬▬▬▬▬▬▬
+👑 Créateur : Raijin Kaminari
+▬▬▬▬▬▬▬▬▬▬▬▬`;
 
       try {
-        const canvas = createCanvas(1200, 675);
-        const ctx = canvas.getContext('2d');
+        const sentMsg = await api.sendMessage(notificationText, tid);
+        sentMessages.push({ messageID: sentMsg.messageID, threadID: tid });
+        success++;
+      } catch {
+        fail++;
+      }
 
-        if (bgImage) {
-          ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-        } else {
-          const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          bgGradient.addColorStop(0, '#0f141c');
-          bgGradient.addColorStop(1, '#080b10');
-          ctx.fillStyle = bgGradient;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        const boxX = 40, boxY = 40, boxW = canvas.width - 80, boxH = canvas.height - 80;
-        ctx.fillStyle = "rgba(17, 22, 30, 0.9)";
-        ctx.strokeStyle = "rgba(229, 26, 36, 0.8)";
-        ctx.lineWidth = 4;
-        
-        ctx.beginPath();
-        ctx.roundRect(boxX, boxY, boxW, boxH, 16);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#E51A24";
-        ctx.font = "bold 32px sans-serif";
-        ctx.fillText("▍ SYSTEM BROADCAST", boxX + 40, boxY + 65);
-
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.font = "26px sans-serif";
-        ctx.textAlign = "right";
-        ctx.fillText(`Envoyé à ${timeString}`, boxX + boxW - 40, boxY + 65);
-        ctx.textAlign = "left";
-
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(boxX + 40, boxY + 100);
-        ctx.lineTo(boxX + boxW - 40, boxY + 100);
-        ctx.stroke();
-
-        await drawAvatar(ctx, adminAvatarUrl, boxX + 40, boxY + 130, 45, adminName.charAt(0), "#3b5998");
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText(adminName, boxX + 150, boxY + 170);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-        ctx.font = "18px sans-serif";
-        ctx.fillText("Administrateur Système", boxX + 150, boxY + 200);
-
-        const groupAvatarX = boxX + boxW - 130;
-        await drawAvatar(ctx, groupAvatarUrl, groupAvatarX, boxY + 130, 45, groupName.charAt(0), "#1db954");
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 24px sans-serif";
-        ctx.textAlign = "right";
-        ctx.fillText(groupName, groupAvatarX - 20, boxY + 170);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-        ctx.font = "18px sans-serif";
-        ctx.fillText("Groupe Destinataire", groupAvatarX - 20, boxY + 200);
-        ctx.textAlign = "left";
-
-        ctx.beginPath();
-        ctx.moveTo(boxX + 40, boxY + 250);
-        ctx.lineTo(boxX + boxW - 40, boxY + 250);
-        ctx.stroke();
-
-        ctx.fillStyle = "#EAEAEA";
-        ctx.font = "30px sans-serif";
-        
-        const words = textToDraw.split(' ');
-        let line = '';
-        const lines = [];
-        const maxWidth = boxW - 100;
-        const lineHeight = 48;
-
-        for (let n = 0; n < words.length; n++) {
-          let testLine = line + words[n] + ' ';
-          let metrics = ctx.measureText(testLine);
-          if (metrics.width > maxWidth && n > 0) {
-            lines.push(line);
-            line = words[n] + ' ';
-          } else {
-            line = testLine;
-          }
-        }
-        lines.push(line);
-
-        let textY = boxY + 320;
-        for (let k = 0; k < lines.length; k++) {
-          if (textY < boxY + boxH - 50) {
-            ctx.fillText(lines[k], boxX + 50, textY);
-            textY += lineHeight;
-          }
-        }
-
-        const buffer = canvas.toBuffer('image/jpeg', { quality: 0.95 });
-        fs.writeFileSync(cachePath, buffer);
-
-        const formSend = {
-          body: `📢 **Alerte Système Administration**`,
-          attachment: [
-            fs.createReadStream(cachePath),
-            ...await getStreamsFromAttachment([
-              ...event.attachments,
-              ...(event.messageReply?.attachments || [])
-            ])
-          ]
-        };
-
-        const sentMsg = await api.sendMessage(formSend, thread.threadID);
-        sendSuccess++;
-        notificationMemory[`${thread.threadID}_${sentMsg.messageID}`] = { groupName, threadID: thread.threadID };
-        
-        await new Promise(resolve => setTimeout(resolve, delayPerGroup));
-
-      } catch (err) {
-        let errorMsg = err.message;
-        try {
-          const parsed = JSON.parse(err.message);
-          if (parsed.errorDescription) errorMsg = parsed.errorDescription;
-        } catch {}
-        sendError.push({ threadID: thread.threadID, groupName, error: errorMsg });
+      if ((i + 1) % 3 === 0 || i === allThreads.length - 1) {
+        await updateProgress(i + 1, total, success, fail);
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
-    setTimeout(() => { if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath); }, 20000);
+    await updateProgress(allThreads.length, total, success, fail);
 
-    let bilan = `[BILAN DIFFUSION]\n🟢 Réussis: ${sendSuccess}\n🔴 Échecs: ${sendError.length}`;
-    if (sendError.length) sendError.forEach(err => { bilan += `\n- ${err.groupName}: ${err.error}`; });
-    message.reply(bilan.trim());
+    const finalReport =
+`✅ Notification terminée.
+
+▬▬▬▬▬▬▬▬▬▬▬▬
+📤 Envoyé depuis : ${sourceGroupName}
+📊 Succès : ${success}
+❌ Échecs : ${fail}
+▬▬▬▬▬▬▬▬▬▬▬▬
+👑 Créateur : Raijin Kaminari`;
+
+    await api.editMessage(finalReport, progressMsgID);
+
+    if (!global.GoatBot.notifications) global.GoatBot.notifications = [];
+    global.GoatBot.notifications.push({
+      adminID: senderID,
+      adminName,
+      sourceGroupName,
+      sentMessages,
+      timestamp: Date.now()
+    });
+
+    setTimeout(() => {
+      global.GoatBot.notifications = (global.GoatBot.notifications || []).filter(
+        n => n.adminID !== senderID || n.timestamp !== Date.now()
+      );
+    }, 86400000);
   },
 
-  onMessage: async function({ api, event }) {
-    if (!event.messageReply) return;
+  onReply: async function ({ event, api, usersData }) {
+    if (!global.GoatBot.notifications) return;
 
-    const repliedMsgID = event.messageReply.messageID;
-    const notificationKey = Object.keys(notificationMemory).find(key => key.endsWith(`_${repliedMsgID}`));
-    if (!notificationKey) return;
+    const replyToID = event.messageReply?.messageID;
+    if (!replyToID) return;
 
-    const { groupName, threadID } = notificationMemory[notificationKey];
-    const userName = event.senderName || "Utilisateur";
-    const userID = event.senderID;
+    for (let i = global.GoatBot.notifications.length - 1; i >= 0; i--) {
+      const notif = global.GoatBot.notifications[i];
+      const found = notif.sentMessages.some(m => m.messageID === replyToID);
+      if (!found) continue;
 
-    const adminMessage = `[REPONSE DETECTEE]\n👤 Expéditeur: ${userName} (ID: ${userID})\n👥 Groupe: ${groupName} (ID: ${threadID})\n\n💬 Message:\n${event.body || "Média joint"}\n\n---\n👉 Répondez à cette alerte pour envoyer votre message retour.`;
+      const replierID = event.senderID;
+      const replierName = await usersData.getName(replierID) || "Utilisateur inconnu";
+      const replyContent = event.body || "[Pièce jointe]";
 
-    const targetAdmin = global.config.ADMINBOT || event.senderID;
-    api.sendMessage(adminMessage, targetAdmin);
+      let groupName = "Inconnu";
+      try {
+        const threadInfo = await api.getThreadInfo(event.threadID);
+        groupName = threadInfo.threadName || "Groupe sans nom";
+      } catch {}
+
+      const msgToAdmin =
+`▬▬▬▬▬▬▬▬▬▬▬▬
+💬 𝗥𝗘𝗣𝗟𝗬 𝗡𝗢𝗧𝗜𝗙𝗜𝗖𝗔𝗧𝗜𝗢𝗡
+▬▬▬▬▬▬▬▬▬▬▬▬
+
+👤 Utilisateur : ${replierName}
+📌 Groupe : ${groupName}
+📩 Message :
+${replyContent}
+
+▬▬▬▬▬▬▬▬▬▬▬▬
+👑 Répondu depuis la notification de ${notif.adminName}
+▬▬▬▬▬▬▬▬▬▬▬▬`;
+
+      try {
+        await api.sendMessage(msgToAdmin, notif.adminID);
+      } catch {
+        try {
+          const adminThreadInfo = await api.getThreadInfo(notif.adminID);
+          if (adminThreadInfo.isGroup) {
+            await api.sendMessage(msgToAdmin, notif.adminID);
+          }
+        } catch {}
+      }
+      break;
+    }
   }
 };
-
