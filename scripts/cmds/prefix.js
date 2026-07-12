@@ -108,14 +108,14 @@ module.exports = {
       const uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
 
       const textInfo =
-`▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+`▬▬▬▬▬▬▬▬▬▬▬▬
 💠 Current bot prefix : ${threadPrefix}
 🗝️  System prefix : ${systemPrefix}
-🫡 I am at your service ʚʆɞ ${userName} ʚʆɞ
+🫡 I am at your service ${userName}
 📌 Type ${threadPrefix}help to see command list
 👑 Creator: Raijin Kaminari
 🔗 Facebook: https://www.facebook.com/kakashi.cmr
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬`;
+▬▬▬▬▬▬▬▬▬▬▬▬`;
 
       const W = 1200, H = 900;
       const canvas = createCanvas(W, H);
@@ -171,7 +171,7 @@ module.exports = {
       drawStat("📌 GROUP PREFIX", threadPrefix, "#50b4ff", "#ffffff");
       y += 10;
 
-      drawStat("👤 USER", "ʚʆɞ " + userName + " ʚʆɞ", "#50ffa0", "#ffffff");
+      drawStat("👤 USER", userName, "#50ffa0", "#ffffff");
       drawStat("🆔 UID", uid, "#c850ff", "#ffffff");
       y += 10;
 
