@@ -108,14 +108,14 @@ module.exports = {
       const uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
 
       const textInfo =
-`▬▬▬▬▬▬▬▬▬▬▬▬
+`▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 💠 Current bot prefix : ${threadPrefix}
 🗝️  System prefix : ${systemPrefix}
-🫡 I am at your service ʚʆɞ Raijin Kaminari ʚʆɞ
+🫡 I am at your service ʚʆɞ ${userName} ʚʆɞ
 📌 Type ${threadPrefix}help to see command list
 👑 Creator: Raijin Kaminari
 🔗 Facebook: https://www.facebook.com/kakashi.cmr
-▬▬▬▬▬▬▬▬▬▬▬▬`;
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬`;
 
       const W = 1200, H = 900;
       const canvas = createCanvas(W, H);
