@@ -94,7 +94,7 @@ module.exports = {
   config: {
     name: "help",
     version: "11.0",
-    author: "Ivdra Uchiwa",
+    author: "Raijin Kaminari",
     role: 0,
     category: "info"
   },
