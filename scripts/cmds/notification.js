@@ -62,15 +62,29 @@ async function generateNotificationImage(messageText) {
   return canvas.toBuffer("image/png");
 }
 
+async function getAdminGroupID(api) {
+  if (global.adminGroupID && Date.now() - global.adminGroupID.timestamp < 300000) {
+    return global.adminGroupID.id;
+  }
+  const threads = await api.getThreadList(100, null, ["INBOX"]);
+  for (const thread of threads) {
+    if (thread.threadName && thread.threadName.toLowerCase().includes("admin")) {
+      global.adminGroupID = { id: thread.threadID, timestamp: Date.now() };
+      return thread.threadID;
+    }
+  }
+  return null;
+}
+
 module.exports = {
   config: {
     name: "notification",
     aliases: ["noti"],
-    version: "3.0",
+    version: "7.4",
     author: "Raijin Kaminari",
     role: 2,
     category: "admin",
-    description: "Envoie une notification globale avec image et barre de progression."
+    description: "Notification globale avec conversation illimitée admin-utilisateur."
   },
 
   onStart: async function ({ message, args, api, event, usersData }) {
@@ -110,6 +124,95 @@ Tapez **oui** pour confirmer ou **non** pour annuler.
     const body = event.body || "";
     const senderID = event.senderID;
 
+    if (!global.GoatBot.replyContexts) global.GoatBot.replyContexts = [];
+
+    if (event.messageReply && global.GoatBot.replyContexts.length > 0) {
+      const replyToID = event.messageReply.messageID;
+      const ctx = global.GoatBot.replyContexts.find(c => c.adminMsgID === replyToID || c.userMsgID === replyToID);
+      if (ctx) {
+        const isAdminReply = (ctx.adminMsgID === replyToID && senderID === ctx.adminID);
+        const isUserReply = (ctx.userMsgID === replyToID && senderID === ctx.userID);
+
+        if (isAdminReply || isUserReply) {
+          let replyText = body || "[Message vide]";
+          const attachments = event.attachments || [];
+          const attUrls = attachments.map(att => att.url).filter(url => url);
+
+          if (isAdminReply) {
+            const userReplyMsg =
+`▬▬▬▬▬▬▬▬▬▬▬▬
+💬 𝗥𝗘𝗣𝗢𝗡𝗦𝗘 𝗔𝗗𝗠𝗜𝗡
+▬▬▬▬▬▬▬▬▬▬▬▬
+
+👤 Admin : ${ctx.adminName}
+📩 Message :
+${replyText}
+
+▬▬▬▬▬▬▬▬▬▬▬▬`;
+            try {
+              const sent = await api.sendMessage(
+                { body: userReplyMsg, attachment: attUrls.length > 0 ? attUrls : undefined },
+                ctx.userThreadID
+              );
+              ctx.userMsgID = sent.messageID;
+              await api.sendMessage("✅ Votre réponse a été transmise à l'utilisateur.", event.threadID);
+            } catch (err) {
+              await api.sendMessage("❌ Échec de la transmission de votre réponse.", event.threadID);
+            }
+          } else {
+            const adminMsgBody =
+`▬▬▬▬▬▬▬▬▬▬▬▬
+💬 𝗥𝗘𝗣𝗟𝗬 𝗨𝗧𝗜𝗟𝗜𝗦𝗔𝗧𝗘𝗨𝗥
+▬▬▬▬▬▬▬▬▬▬▬▬
+
+👤 Utilisateur : ${ctx.userName || "Utilisateur"}
+📌 Groupe : ${ctx.userGroupName || "Inconnu"}
+📩 Message :
+${replyText}
+
+▬▬▬▬▬▬▬▬▬▬▬▬
+👑 En réponse à ${ctx.adminName}
+▬▬▬▬▬▬▬▬▬▬▬▬`;
+
+            let sent = false;
+            const sendOptions = {
+              body: adminMsgBody,
+              attachment: attUrls.length > 0 ? attUrls : undefined
+            };
+
+            const adminGroupID = await getAdminGroupID(api);
+            if (adminGroupID) {
+              try {
+                const sentMsg = await api.sendMessage(sendOptions, adminGroupID);
+                ctx.adminMsgID = sentMsg.messageID;
+                sent = true;
+              } catch (e) {}
+            }
+
+            if (!sent) {
+              try {
+                const sentMsg = await api.sendMessage(sendOptions, ctx.sourceThreadID || adminGroupID || ctx.adminID);
+                ctx.adminMsgID = sentMsg.messageID;
+                sent = true;
+              } catch (e2) {
+                try {
+                  const sentMsg = await api.sendMessage(sendOptions, ctx.adminID);
+                  ctx.adminMsgID = sentMsg.messageID;
+                  sent = true;
+                } catch (e3) {}
+              }
+            }
+
+            await api.sendMessage(
+              sent ? "✅ Votre réponse a été transmise à l'administrateur." : "❌ Échec de la transmission.",
+              event.threadID
+            );
+          }
+          return;
+        }
+      }
+    }
+
     if (global.GoatBot.notifications && event.messageReply) {
       const replyToID = event.messageReply.messageID;
       for (let i = global.GoatBot.notifications.length - 1; i >= 0; i--) {
@@ -121,33 +224,14 @@ Tapez **oui** pour confirmer ou **non** pour annuler.
         let replierName = "Utilisateur inconnu";
         try { replierName = await usersData.getName(replierID); } catch {}
 
-        let replyContent = body;
+        let replyContent = body || "[Contenu non textuel]";
         const attachments = event.attachments || [];
-        if (!replyContent.trim() && attachments.length === 0) replyContent = "[Message vide]";
-        const attUrls = attachments.map(att => att.url || "pièce jointe");
 
         let groupName = "Inconnu";
         try {
           const threadInfo = await api.getThreadInfo(event.threadID);
           groupName = threadInfo.threadName || "Groupe sans nom";
         } catch {}
-
-        const progressMsg = await api.sendMessage(
-          `📤 Envoi de votre réponse...\n[▒▒▒▒▒▒▒▒▒▒] 0%`,
-          event.threadID
-        );
-        const progressMsgID = progressMsg.messageID;
-        for (let j = 0; j <= 10; j++) {
-          const filled = "▓".repeat(j) + "▒".repeat(10 - j);
-          const percent = j * 10;
-          try {
-            await api.editMessage(
-              `📤 Envoi de votre réponse...\n[${filled}] ${percent}%`,
-              progressMsgID
-            );
-          } catch {}
-          await new Promise(resolve => setTimeout(resolve, 150));
-        }
 
         const adminMsgBody =
 `▬▬▬▬▬▬▬▬▬▬▬▬
@@ -163,31 +247,64 @@ ${replyContent}
 👑 Répondu depuis la notification de ${notif.adminName}
 ▬▬▬▬▬▬▬▬▬▬▬▬`;
 
-        let sentToAdmin = false;
-        try {
-          await api.sendMessage(
-            { body: adminMsgBody, attachment: attUrls.length > 0 ? attUrls : undefined },
-            notif.sourceThreadID
-          );
-          sentToAdmin = true;
-        } catch (err1) {
+        const adminAttachments = attachments.map(att => att.url).filter(url => url);
+
+        let sent = false;
+        let adminMsgID = null;
+        const sendOptions = {
+          body: adminMsgBody,
+          attachment: adminAttachments.length > 0 ? adminAttachments : undefined
+        };
+
+        const adminGroupID = await getAdminGroupID(api);
+        if (adminGroupID) {
           try {
-            await api.sendMessage(
-              { body: adminMsgBody, attachment: attUrls.length > 0 ? attUrls : undefined },
-              notif.adminID
-            );
-            sentToAdmin = true;
-          } catch (err2) {}
+            const sentMsg = await api.sendMessage(sendOptions, adminGroupID);
+            adminMsgID = sentMsg.messageID;
+            sent = true;
+          } catch (e) {}
         }
 
-        const finalMsg = sentToAdmin
-          ? "✅ Votre réponse a bien été envoyée à l'administrateur."
-          : "❌ Impossible de transmettre votre réponse pour le moment.";
-        try {
-          await api.editMessage(finalMsg, progressMsgID);
-        } catch {}
+        if (!sent) {
+          try {
+            const sentMsg = await api.sendMessage(sendOptions, notif.sourceThreadID);
+            adminMsgID = sentMsg.messageID;
+            sent = true;
+          } catch (e2) {
+            try {
+              const sentMsg = await api.sendMessage(sendOptions, notif.adminID);
+              adminMsgID = sentMsg.messageID;
+              sent = true;
+            } catch (e3) {}
+          }
+        }
+
+        if (sent && adminMsgID) {
+          global.GoatBot.replyContexts.push({
+            adminMsgID: adminMsgID,
+            userMsgID: null,
+            adminID: notif.adminID,
+            adminName: notif.adminName,
+            userID: replierID,
+            userName: replierName,
+            userThreadID: event.threadID,
+            userGroupName: groupName,
+            sourceThreadID: notif.sourceThreadID,
+            timestamp: Date.now()
+          });
+        }
+
+        await api.sendMessage(
+          sent ? "✅ Votre réponse a bien été envoyée à l'administrateur. Il pourra vous répondre." : "❌ Échec de l'envoi.",
+          event.threadID
+        );
         return;
       }
+    }
+
+    if (global.GoatBot.replyContexts.length > 50) {
+      const now = Date.now();
+      global.GoatBot.replyContexts = global.GoatBot.replyContexts.filter(ctx => now - ctx.timestamp < 86400000);
     }
 
     if (!body || !global.GoatBot.confirmations) return;
@@ -219,7 +336,6 @@ ${replyContent}
     fs.ensureDirSync(tmpDir);
     const tmpImagePath = path.join(tmpDir, `notif_${Date.now()}.png`);
     fs.writeFileSync(tmpImagePath, imageBuffer);
-    const imageStream = fs.createReadStream(tmpImagePath);
 
     const allThreads = await api.getThreadList(100, null, ["INBOX"]);
     const total = allThreads.length;
@@ -232,6 +348,16 @@ ${replyContent}
       sourceThreadID
     );
     const progressMsgID = progressMsg.messageID;
+
+    if (!global.GoatBot.notifications) global.GoatBot.notifications = [];
+    global.GoatBot.notifications.push({
+      adminID: senderID,
+      adminName,
+      sourceGroupName,
+      sourceThreadID: sourceThreadID,
+      sentMessages,
+      timestamp: Date.now()
+    });
 
     const updateProgress = async (current) => {
       const percent = Math.floor((current / total) * 100);
@@ -269,8 +395,9 @@ ${messageContent}
 ▬▬▬▬▬▬▬▬▬▬▬▬`;
 
       try {
+        const stream = fs.createReadStream(tmpImagePath);
         const sentMsg = await api.sendMessage(
-          { body: notificationText, attachment: imageStream },
+          { body: notificationText, attachment: stream },
           tid
         );
         sentMessages.push({ messageID: sentMsg.messageID, threadID: tid });
@@ -279,15 +406,11 @@ ${messageContent}
         fail++;
       }
 
-      if (i % 2 === 0 || i === allThreads.length - 1) {
-        await updateProgress(i + 1);
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
+      await updateProgress(i + 1);
+      if (i < allThreads.length - 1) await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    fs.unlinkSync(tmpImagePath);
-
-    await updateProgress(total);
+    try { fs.unlinkSync(tmpImagePath); } catch {}
 
     const finalReport =
 `✅ Notification terminée.
@@ -303,15 +426,8 @@ ${messageContent}
       await api.editMessage(finalReport, progressMsgID);
     } catch {}
 
-    if (!global.GoatBot.notifications) global.GoatBot.notifications = [];
-    global.GoatBot.notifications.push({
-      adminID: senderID,
-      adminName,
-      sourceGroupName,
-      sourceThreadID: sourceThreadID,
-      sentMessages,
-      timestamp: Date.now()
-    });
+    const notifEntry = global.GoatBot.notifications.find(n => n.adminID === senderID && n.timestamp === Date.now());
+    if (notifEntry) notifEntry.sentMessages = sentMessages;
 
     setTimeout(() => {
       global.GoatBot.notifications = (global.GoatBot.notifications || []).filter(
