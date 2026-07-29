@@ -91,7 +91,7 @@ module.exports = {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     let animMsg = await api.sendMessage(
-      `   ◢ SLOTS MACHINE ◣\n╭───────────────╮\n│    🔄  │  🔄  │  🔄  │\n╰───────────────╯\n◈ ${bold("STATUS")}: ${bold("SPINNING...")}`,
+      `   ◢ SLOTS MACHINE ◣\n╭────────────╮\n│    🔄  │  🔄  │  🔄  │\n╰────────────╯\n◈ ${bold("STATUS")}: ${bold("SPINNING...")}`,
       threadID,
       messageID
     );
@@ -100,7 +100,7 @@ module.exports = {
 
     try {
       await api.editMessage(
-        `   ◢ SLOTS MACHINE ◣\n╭───────────────╮\n│    ${s1}  │  ${getRandomSymbol()}  │  ${getRandomSymbol()}  │\n╰───────────────╯\n◈ ${bold("STATUS")}: ${bold("SPINNING...")}`,
+        `   ◢ SLOTS MACHINE ◣\n╭────────────╮\n│    ${s1}  │  ${getRandomSymbol()}  │  ${getRandomSymbol()}  │\n╰────────────╯\n◈ ${bold("STATUS")}: ${bold("SPINNING...")}`,
         animMsg.messageID
       );
     } catch (e) {}
@@ -109,7 +109,7 @@ module.exports = {
 
     try {
       await api.editMessage(
-        `   ◢ SLOTS MACHINE ◣\n╭───────────────╮\n│    ${s1}  │  ${s2}  │  ${getRandomSymbol()}  │\n╰───────────────╯\n◈ ${bold("STATUS")}: ${bold("SPINNING...")}`,
+        `   ◢ SLOTS MACHINE ◣\n╭────────────╮\n│    ${s1}  │  ${s2}  │  ${getRandomSymbol()}  │\n╰────────────╯\n◈ ${bold("STATUS")}: ${bold("SPINNING...")}`,
         animMsg.messageID
       );
     } catch (e) {}
@@ -118,7 +118,7 @@ module.exports = {
 
     try {
       await api.editMessage(
-        `   ◢ SLOTS MACHINE ◣\n╭───────────────╮\n│    ${s1}  │  ${s2}  │  ${s3}  │\n╰───────────────╯\n◈ ${bold("STATUS")}: ${bold("RESULT...")}`,
+        `   ◢ SLOTS MACHINE ◣\n╭────────────╮\n│    ${s1}  │  ${s2}  │  ${s3}  │\n╰────────────╯\n◈ ${bold("STATUS")}: ${bold("RESULT...")}`,
         animMsg.messageID
       );
     } catch (e) {}
@@ -126,7 +126,7 @@ module.exports = {
     await delay(1800);
 
     const finalMsg =
-      `   ◢ SLOTS MACHINE ◣\n╭───────────────╮\n│    ${s1}  │  ${s2}  │  ${s3}  │\n╰───────────────╯\n` +
+      `   ◢ SLOTS MACHINE ◣\n╭────────────╮\n│    ${s1}  │  ${s2}  │  ${s3}  │\n╰────────────╯\n` +
       `◈ ${bold("STATUS")}: ${bold(statusText)}\n` +
       `─────────────────\n` +
       `⌬ ${bold("BET")} : ${bold(formatMoney(bet))}\n` +
