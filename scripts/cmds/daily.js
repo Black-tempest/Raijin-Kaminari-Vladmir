@@ -1,13 +1,9 @@
-const fs = require("fs-extra");
-const path = require("path");
 const moment = require("moment-timezone");
-
-moment.locale("fr");
 
 module.exports = {
   config: {
     name: "daily",
-    version: "3.0",
+    version: "4.0",
     author: "Veldora Tempest",
     role: 0,
     category: "economy",
@@ -20,17 +16,16 @@ module.exports = {
     const senderID = event.senderID;
     const userName = (await usersData.getName(senderID)) || "Utilisateur";
 
+    const today = moment.tz("Africa/Abidjan").format("DD/MM/YYYY");
+
     let userData = await usersData.get(senderID);
     if (!userData || typeof userData !== "object") userData = {};
 
-    const now = moment().tz("Africa/Abidjan");
-    const todayStart = now.clone().startOf("day").valueOf();
+    if (!userData.data) userData.data = {};
+    const last = userData.data.lastDaily;
 
-    const lastDaily = userData.daily?.last || 0;
-    if (lastDaily && lastDaily >= todayStart) {
-      const tomorrow = moment(lastDaily).add(1, "day").startOf("day");
-      const remaining = moment.duration(tomorrow.diff(now)).humanize(true);
-      return message.reply(`❌ Vous avez déjà réclamé votre récompense.\nRevenez ${remaining}.`);
+    if (last === today) {
+      return message.reply("❌ Vous avez déjà réclamé votre récompense aujourd'hui.");
     }
 
     if (typeof userData.money !== "number") userData.money = 0;
@@ -38,9 +33,13 @@ module.exports = {
 
     userData.money += 300;
     userData.exp += 234;
+    userData.data.lastDaily = today;
 
-    userData.daily = { last: todayStart };
-    await usersData.set(senderID, userData);
+    await usersData.set(senderID, {
+      money: userData.money,
+      exp: userData.exp,
+      data: userData.data
+    });
 
     const updated = await usersData.get(senderID);
     const newBalance = updated?.money || userData.money;
