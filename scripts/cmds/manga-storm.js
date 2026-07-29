@@ -23,16 +23,16 @@ module.exports = {
             threadID,
             player1: null,
             player2: null,
-            mode: null, // 'multi' ou 'bot'
-            step: 'chooseMode', // étapes: chooseMode, waitStart, waitPlayerIDs, chooseChar1, chooseChar2, battle
-            expectedUser: senderID, // celui qui a tapé la commande
+            mode: null,
+            step: 'chooseMode',
+            expectedUser: senderID,
             player1Char: null,
             player2Char: null,
             player1PV: 0,
             player1PE: 0,
             player2PV: 0,
             player2PE: 0,
-            currentTurn: 1, // 1 ou 2
+            currentTurn: 1,
             lastMessageID: null
         };
 
@@ -54,15 +54,17 @@ module.exports = {
             if (senderID !== session.expectedUser) return;
             if (body === 'multi') {
                 session.mode = 'multi';
+                session.player1 = senderID;  // le joueur 1 est celui qui a lancé la commande
                 session.step = 'waitStart';
-                session.expectedUser = session.player1; // celui qui a lancé
+                session.expectedUser = session.player1;
                 const msg = await api.sendMessage("Mode multijoueur activé.\nLe joueur 1 doit taper 'Start' pour lancer la partie.", threadID);
                 session.lastMessageID = msg.messageID;
             } else if (body === 'bot') {
                 session.mode = 'bot';
-                session.player1 = session.expectedUser; // le joueur 1 est celui qui a lancé
+                session.player1 = senderID;
                 session.player2 = 'bot';
                 session.step = 'waitStart';
+                session.expectedUser = session.player1;
                 const msg = await api.sendMessage("Mode contre le bot activé.\nTapez 'Start' pour commencer.", threadID);
                 session.lastMessageID = msg.messageID;
             } else {
@@ -77,10 +79,10 @@ module.exports = {
             if (body === 'start') {
                 if (session.mode === 'multi') {
                     session.step = 'waitPlayerIDs';
-                    const msg = await api.sendMessage("Les joueurs, identifiez-vous :\nLe joueur 1 (celui qui a lancé) tapez '1', le joueur 2 tapez '2'.", threadID);
+                    session.expectedUser = null;
+                    const msg = await api.sendMessage("Confirmez votre identité :\nLe joueur 1 tapez '1', le joueur 2 tapez '2'.", threadID);
                     session.lastMessageID = msg.messageID;
-                    session.expectedUser = null; // n'importe qui peut répondre
-                } else { // mode bot
+                } else {
                     session.step = 'chooseChar1';
                     session.expectedUser = session.player1;
                     const charListMsg = await getCharacterListMessage();
@@ -92,19 +94,28 @@ module.exports = {
         }
 
         if (session.step === 'waitPlayerIDs') {
-            if (body === '1' && !session.player1) {
-                // Vérifier que le joueur 1 n'est pas déjà pris et que l'ID n'est pas déjà utilisé par le joueur 2
-                if (session.player2 === senderID) {
-                    const msg = await api.sendMessage("Vous êtes déjà le joueur 2. Attendez que le joueur 1 s'identifie.", threadID);
+            if (body === '1') {
+                if (senderID !== session.player1) {
+                    const msg = await api.sendMessage("Vous n'êtes pas le joueur 1. Attendez que le joueur 2 s'identifie.", threadID);
                     session.lastMessageID = msg.messageID;
                     return;
                 }
-                session.player1 = senderID;
-                const msg = await api.sendMessage(`✅ ${event.senderName || 'Utilisateur'} est maintenant Joueur 1.`, threadID);
-                session.lastMessageID = msg.messageID;
-            } else if (body === '2' && !session.player2) {
-                if (session.player1 === senderID) {
-                    const msg = await api.sendMessage("Vous êtes déjà le joueur 1. Attendez que le joueur 2 s'identifie.", threadID);
+                if (!session._p1confirmed) {
+                    session._p1confirmed = true;
+                    const msg = await api.sendMessage("✅ Joueur 1 confirmé.", threadID);
+                    session.lastMessageID = msg.messageID;
+                } else {
+                    const msg = await api.sendMessage("Joueur 1 déjà confirmé, en attente du joueur 2.", threadID);
+                    session.lastMessageID = msg.messageID;
+                }
+            } else if (body === '2') {
+                if (senderID === session.player1) {
+                    const msg = await api.sendMessage("Vous êtes déjà le joueur 1, quelqu'un d'autre doit être le joueur 2.", threadID);
+                    session.lastMessageID = msg.messageID;
+                    return;
+                }
+                if (session.player2) {
+                    const msg = await api.sendMessage("Le joueur 2 est déjà défini.", threadID);
                     session.lastMessageID = msg.messageID;
                     return;
                 }
@@ -112,11 +123,10 @@ module.exports = {
                 const msg = await api.sendMessage(`✅ ${event.senderName || 'Utilisateur'} est maintenant Joueur 2.`, threadID);
                 session.lastMessageID = msg.messageID;
             } else {
-                return; // message ignoré
+                return;
             }
 
-            // Vérifier si les deux joueurs sont prêts
-            if (session.player1 && session.player2) {
+            if (session._p1confirmed && session.player2) {
                 session.step = 'chooseChar1';
                 session.expectedUser = session.player1;
                 const charListMsg = await getCharacterListMessage();
@@ -136,11 +146,9 @@ module.exports = {
                 return;
             }
             session.player1Char = character;
-            // Afficher la fiche du personnage
             const ficheMsg = getCharacterCard(character, 1);
             await api.sendMessage(ficheMsg, threadID);
             if (session.mode === 'bot') {
-                // Le bot choisit aléatoirement
                 const botChar = getRandomCharacter();
                 session.player2Char = botChar;
                 const ficheBot = getCharacterCard(botChar, 2);
@@ -165,7 +173,6 @@ module.exports = {
                 session.lastMessageID = msg.messageID;
                 return;
             }
-            // Vérifier que le personnage n'est pas déjà pris par le joueur 1
             if (character.name === session.player1Char.name) {
                 const msg = await api.sendMessage("Ce personnage est déjà choisi par le Joueur 1. Veuillez en choisir un autre.", threadID);
                 session.lastMessageID = msg.messageID;
@@ -179,19 +186,15 @@ module.exports = {
         }
 
         if (session.step === 'battle') {
-            // Gérer les actions de combat
             if (session.currentTurn === 1 && senderID !== session.player1) return;
             if (session.currentTurn === 2 && session.player2 !== 'bot' && senderID !== session.player2) return;
 
-            // Si c'est le tour du bot
             if (session.currentTurn === 2 && session.player2 === 'bot') {
                 const botAttacks = session.player2Char.attacks;
-                // Choisir une attaque que le bot peut se permettre en PE
                 const validAttacks = botAttacks.filter(a => a.cost <= session.player2PE);
-                const attack = validAttacks.length > 0 ? validAttacks[Math.floor(Math.random() * validAttacks.length)] : botAttacks[0]; // attaque de base si pas assez de PE
+                const attack = validAttacks.length > 0 ? validAttacks[Math.floor(Math.random() * validAttacks.length)] : botAttacks[0];
                 await processAttack(api, session, threadID, attack, 2);
             } else {
-                // Joueur humain
                 const choice = parseInt(body);
                 const attacks = session.currentTurn === 1 ? session.player1Char.attacks : session.player2Char.attacks;
                 if (isNaN(choice) || choice < 1 || choice > attacks.length) {
@@ -212,14 +215,9 @@ module.exports = {
     }
 };
 
-// Fonctions utilitaires pour le jeu
-
 function getCharacterByNumber(num) {
     const chars = getCharacters();
-    if (num >= 1 && num <= chars.length) {
-        return chars[num - 1];
-    }
-    return null;
+    return (num >= 1 && num <= chars.length) ? chars[num - 1] : null;
 }
 
 function getRandomCharacter() {
@@ -229,11 +227,7 @@ function getRandomCharacter() {
 
 async function getCharacterListMessage() {
     const chars = getCharacters();
-    let msg = '';
-    chars.forEach((c, index) => {
-        msg += `${index + 1}. ${c.name}\n`;
-    });
-    return msg;
+    return chars.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
 }
 
 function getCharacterCard(character, playerNum) {
@@ -253,18 +247,14 @@ function getCharacterCard(character, playerNum) {
 function getBar(value, max, length = 10) {
     const filled = Math.round((value / max) * length);
     let bar = '';
-    for (let i = 0; i < length; i++) {
-        bar += i < filled ? '▓' : '░';
-    }
+    for (let i = 0; i < length; i++) bar += i < filled ? '▓' : '░';
     return bar;
 }
 
 function getPEBar(value, max, length = 10) {
     const filled = Math.round((value / max) * length);
     let bar = '';
-    for (let i = 0; i < length; i++) {
-        bar += i < filled ? '▒' : '░';
-    }
+    for (let i = 0; i < length; i++) bar += i < filled ? '▒' : '░';
     return bar;
 }
 
@@ -274,8 +264,7 @@ function getBattleStatus(session) {
     let msg = `࿇ ═✥𝐌𝐀𝐍𝐆𝐀-𝐒𝐓𝐎𝐑𝐌✥═ ࿇\n`;
     msg += `👤 Joueur 1 : ${p1.name}\n`;
     msg += `❤️ PV : [${getBar(session.player1PV, p1.maxPV)}] ${Math.round((session.player1PV / p1.maxPV) * 100)}%\n`;
-    msg += `⚛️ PE : [${getPEBar(session.player1PE, p1.maxPE)}] ${Math.round((session.player1PE / p1.maxPE) * 100)}%\n`;
-    msg += `\n`;
+    msg += `⚛️ PE : [${getPEBar(session.player1PE, p1.maxPE)}] ${Math.round((session.player1PE / p1.maxPE) * 100)}%\n\n`;
     msg += `👤 Joueur 2 : ${p2.name}\n`;
     msg += `❤️ PV : [${getBar(session.player2PV, p2.maxPV)}] ${Math.round((session.player2PV / p2.maxPV) * 100)}%\n`;
     msg += `⚛️ PE : [${getPEBar(session.player2PE, p2.maxPE)}] ${Math.round((session.player2PE / p2.maxPE) * 100)}%\n`;
@@ -285,14 +274,13 @@ function getBattleStatus(session) {
 }
 
 async function startBattle(api, session, threadID) {
-    // Initialiser PV et PE
     session.player1PV = session.player1Char.maxPV;
     session.player1PE = session.player1Char.maxPE;
     session.player2PV = session.player2Char.maxPV;
     session.player2PE = session.player2Char.maxPE;
     session.currentTurn = 1;
     session.step = 'battle';
-    session.expectedUser = session.player1; // tour du joueur 1
+    session.expectedUser = session.player1;
 
     const statusMsg = getBattleStatus(session);
     const attacksMsg = await getAttacksMessage(session.player1Char, 1);
@@ -313,9 +301,7 @@ async function processAttack(api, session, threadID, attack, attacker) {
     const attackerChar = attacker === 1 ? session.player1Char : session.player2Char;
     const targetChar = target === 1 ? session.player1Char : session.player2Char;
     
-    // Calculer les dégâts (on peut ajouter des modificateurs de forces/faiblesses)
     let damage = attack.damage;
-    // Si l'attaquant a un bonus contre le type de la cible (simplifié)
     if (attackerChar.strongAgainst && attackerChar.strongAgainst === targetChar.type) {
         damage = Math.floor(damage * 1.3);
     }
@@ -323,37 +309,31 @@ async function processAttack(api, session, threadID, attack, attacker) {
         damage = Math.floor(damage * 0.7);
     }
 
-    // Appliquer les dégâts
     if (target === 1) {
         session.player1PV = Math.max(0, session.player1PV - damage);
     } else {
         session.player2PV = Math.max(0, session.player2PV - damage);
     }
 
-    // Consommer l'énergie
     if (attacker === 1) {
         session.player1PE -= attack.cost;
     } else {
         session.player2PE -= attack.cost;
     }
 
-    // Message d'attaque
     const attackerName = attacker === 1 ? (await getUserName(api, session.player1)) : (session.player2 === 'bot' ? 'Bot' : (await getUserName(api, session.player2)));
     const targetName = target === 1 ? (session.player1 === 'bot' ? 'Bot' : (await getUserName(api, session.player1))) : (session.player2 === 'bot' ? 'Bot' : (await getUserName(api, session.player2)));
     const attackMsg = `⚔️ ${attackerName} utilise ${attack.name} sur ${targetName} et inflige ${damage} dégâts !`;
 
-    // Vérifier si le joueur cible est KO
     if ((target === 1 && session.player1PV <= 0) || (target === 2 && session.player2PV <= 0)) {
         const winner = attacker;
         const winnerName = attacker === 1 ? (await getUserName(api, session.player1)) : (session.player2 === 'bot' ? 'Bot' : (await getUserName(api, session.player2)));
         const statusMsg = getBattleStatus(session);
         await api.sendMessage(`${attackMsg}\n\n${statusMsg}\n\n🏆 ${winnerName} remporte le combat !`, threadID);
-        // Nettoyer la session
         global.mangaStormSessions.delete(threadID);
         return;
     }
 
-    // Changer de tour
     session.currentTurn = target;
     session.expectedUser = target === 1 ? session.player1 : (session.player2 === 'bot' ? null : session.player2);
 
@@ -363,7 +343,6 @@ async function processAttack(api, session, threadID, attack, attacker) {
         nextMsg += '\n🤖 Le bot réfléchit...';
         const msg = await api.sendMessage(nextMsg, threadID);
         session.lastMessageID = msg.messageID;
-        // Attendre un peu puis le bot attaque automatiquement
         setTimeout(async () => {
             if (global.mangaStormSessions.has(threadID)) {
                 const s = global.mangaStormSessions.get(threadID);
@@ -371,8 +350,6 @@ async function processAttack(api, session, threadID, attack, attacker) {
                     const botAttacks = s.player2Char.attacks;
                     const validAttacks = botAttacks.filter(a => a.cost <= s.player2PE);
                     const att = validAttacks.length > 0 ? validAttacks[Math.floor(Math.random() * validAttacks.length)] : botAttacks[0];
-                    // Simuler l'appel à processAttack comme si le bot avait tapé une commande
-                    // On appelle directement la fonction de traitement
                     try {
                         await processAttack(api, s, threadID, att, 2);
                     } catch (e) {
@@ -521,4 +498,4 @@ function getCharacters() {
             ]
         }
     ];
-    }
+                        }
