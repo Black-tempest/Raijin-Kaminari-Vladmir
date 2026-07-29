@@ -93,7 +93,7 @@ async function sendHelpPage(pageIndex, pages, message, senderID) {
 module.exports = {
   config: {
     name: "help",
-    version: "11.0",
+    version: "12.0",
     author: "Raijin Kaminari",
     role: 0,
     category: "info"
@@ -105,6 +105,77 @@ module.exports = {
     const senderID = event.senderID;
     const { commands, aliases } = global.GoatBot;
 
+    // ----- RECHERCHE -----
+    if (args[0] && args[0].toLowerCase() === "search") {
+      const searchTerm = args.slice(1).join(" ").toLowerCase();
+      if (!searchTerm) {
+        return message.reply(`❌ Veuillez entrer un terme de recherche.\n📌 Exemple : ${prefix}help search musique`);
+      }
+
+      const results = [];
+      for (const [name, cmd] of commands) {
+        const cat = cleanCategoryName(cmd.config?.category || "OTHER");
+        if (name.toLowerCase().includes(searchTerm) || cat.toLowerCase().includes(searchTerm)) {
+          results.push({ name, category: cat });
+        }
+      }
+
+      if (results.length === 0) {
+        return message.reply(`❌ Aucune commande trouvée pour "${searchTerm}".`);
+      }
+
+      results.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+
+      const perPage = 45;
+      const searchPages = [];
+      for (let i = 0; i < results.length; i += perPage) {
+        const chunk = results.slice(i, i + perPage);
+        let text = `🔍 Résultats pour "${searchTerm}" - Page ${searchPages.length + 1}/${Math.ceil(results.length / perPage)}\n`;
+        const byCat = {};
+        chunk.forEach(cmd => {
+          if (!byCat[cmd.category]) byCat[cmd.category] = [];
+          byCat[cmd.category].push(cmd.name);
+        });
+        for (const [cat, names] of Object.entries(byCat)) {
+          text += `\n【 ${toBold(cat)} 】\n`;
+          names.forEach(n => text += `➩ ${toBold(n)} 🌹\n`);
+        }
+        text += `\n✨ ${results.length} commande(s) trouvée(s)\n`;
+        text += `📌 Use: ${prefix}help <commande>\n`;
+        if (searchPages.length > 0) text += `📌 Naviguez avec ◀️ ▶️ ou les chiffres\n`;
+        text += `🔍 Recherchez : ${prefix}help search <terme>`;
+        searchPages.push(text);
+      }
+
+      const sent = await sendHelpPage(0, searchPages, message, senderID);
+      const msgID = sent.messageID;
+
+      if (searchPages.length > 1) {
+        try {
+          await message.react("◀️");
+          const numEmojis = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
+          for (let i = 0; i < Math.min(searchPages.length, 10); i++) {
+            await message.react(numEmojis[i]);
+          }
+          await message.react("▶️");
+        } catch {}
+      }
+
+      global.GoatBot.onReaction.set(msgID, {
+        commandName: "help",
+        pages: searchPages,
+        currentPage: 0,
+        userID: senderID,
+        messageID: msgID
+      });
+
+      setTimeout(() => {
+        global.GoatBot.onReaction.delete(msgID);
+      }, 300000);
+      return;
+    }
+
+    // ----- AFFICHAGE NORMAL PAR CATÉGORIES -----
     const categories = {};
     for (const [name, value] of commands) {
       const rawCat = value.config?.category || "OTHER";
@@ -123,7 +194,7 @@ module.exports = {
         sorted.forEach(cmd => allCmds.push({ name: cmd, category: cat.displayName }));
       });
 
-    const perPage = 10;
+    const perPage = 45;
     const pages = [];
     for (let i = 0; i < allCmds.length; i += perPage) {
       const chunk = allCmds.slice(i, i + perPage);
@@ -138,7 +209,9 @@ module.exports = {
         names.forEach(n => text += `➩ ${toBold(n)} 🌹\n`);
       }
       text += `\n✨ Total: ${commands.size} commandes\n`;
-      text += `📌 Use: ${prefix}help <commande>`;
+      text += `📌 Use: ${prefix}help <commande>\n`;
+      if (pages.length > 0) text += `📌 Naviguez avec ◀️ ▶️ ou les chiffres\n`;
+      text += `🔍 Recherchez : ${prefix}help search <terme>`;
       pages.push(text);
     }
 
